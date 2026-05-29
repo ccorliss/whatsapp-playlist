@@ -1,0 +1,25 @@
+node_modules/
+.wwebjs_auth/
+.wwebjs_cache/
+messages/
+logs/
+*.log
+
+# Local DB (not used — Cloudflare D1 is the only DB)
+*.db
+*.db-shm
+*.db-wal
+
+# Cloudflare build cache
+.wrangler/
+
+# Deployment-specific wrangler configs (contain real IDs)
+app/wrangler.guts.toml
+app/wrangler.local.toml
+
+# Secrets / session state
+.env
+config/spotify-session.json
+config/spotify-added.json
+config/spotify-sync.json
+config/youtube-oauth.json

@@ -1,0 +1,15 @@
+node_modules/
+radio.db
+radio.db-shm
+radio.db-wal
+radio.db.bak
+config/youtube-oauth.json
+config/spotify-oauth.json
+config/youtube-playlist-id.txt
+config/spotify-playlist-id.txt
+logs/
+*.log
+.DS_Store
+config/spotify-session.json
+config/spotify-added.json
+config/spotify-sync.json

@@ -1,0 +1,27 @@
+name = "whatsapp-playlist"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "public"
+
+# ── Database ──────────────────────────────────────────────────────────────────
+# Create with: wrangler d1 create guts-radio
+# Replace database_id with the ID from that command.
+[[d1_databases]]
+binding = "DB"
+database_name = "guts-radio"
+database_id = "YOUR_D1_DATABASE_ID"
+
+# ── KV (secrets) ─────────────────────────────────────────────────────────────
+# Create with: wrangler kv:namespace create RADIO_SECRETS
+# Replace id with the ID from that command.
+[[kv_namespaces]]
+binding = "RADIO_SECRETS"
+id = "YOUR_KV_NAMESPACE_ID"
+
+# ── Public vars (not secret) ──────────────────────────────────────────────────
+# Set these to your own playlist IDs and app credentials.
+[vars]
+YOUTUBE_PLAYLIST_ID = ""
+SPOTIFY_PLAYLIST_ID = ""
+SPOTIFY_CLIENT_ID = ""
+APPLE_TEAM_ID = ""
+APPLE_MUSICKIT_KEY_ID = ""

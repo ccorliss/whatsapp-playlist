@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin — Music Fellowship</title>
+  <style>
+    :root{--bg:#111114;--card:#1c1c1f;--alt:#2c2c2f;--blue:#2563eb;--amber:#f59e0b;--red:#ef4444;--ink:#f5f5f7;--soft:#aeaeb2;--faint:#636366;--line:#48484a;--r:10px}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+    #gate{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+    .box{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:32px 28px;width:100%;max-width:340px}
+    .box h1{margin-bottom:6px;font-size:1.1rem}.box p{margin-bottom:20px;font-size:.82rem;color:var(--soft)}
+    input{width:100%;padding:8px 12px;background:var(--alt);border:1px solid var(--line);border-radius:8px;color:var(--ink);font:inherit;font-size:.9rem;outline:none;margin-bottom:10px}
+    input:focus{border-color:var(--blue)}
+    .btn{padding:8px 18px;background:var(--blue);color:#fff;border:none;border-radius:8px;font:inherit;font-size:.85rem;font-weight:600;cursor:pointer;width:100%}
+    .btn:hover{background:#1d4ed8}.btn.sec{background:var(--alt);color:var(--soft);border:1px solid var(--line);width:auto}.btn.red{background:var(--red)}.btn.red:hover{background:#dc2626}
+    .err{color:var(--red);font-size:.8rem;margin-top:8px;display:none}
+    #panel{display:none;max-width:700px;margin:0 auto;padding:28px 24px 80px}
+    h2{margin-bottom:20px;font-size:.8rem;color:var(--soft);text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:16px}
+    .card h3{margin-bottom:10px;font-size:.95rem;color:var(--amber)}.card.red{border-color:var(--red)}.card.red h3{color:var(--red)}
+    label{display:block;font-size:.8rem;color:var(--soft);margin-bottom:8px;line-height:1.5}
+    .st{font-size:.82rem;color:var(--amber);min-height:1rem;margin-top:10px}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+    .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;text-align:center}
+    .stat b{display:block;font-size:1.6rem;font-weight:700;color:var(--blue)}
+    .stat s{display:block;font-size:.72rem;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+  </style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="box">
+    <h1>Music Fellowship</h1>
+    <p>Admin access only.</p>
+    <input type="text" id="u" placeholder="Username" autocomplete="username"/>
+    <input type="password" id="p" placeholder="Password" autocomplete="current-password"/>
+    <button class="btn" id="sign-in">Sign in</button>
+    <div class="err" id="err">Incorrect credentials.</div>
+  </div>
+</div>
+
+<div id="panel">
+  <h2>Admin</h2>
+  <div class="grid">
+    <div class="stat"><b id="n-tracks">—</b><s>Tracks</s></div>
+    <div class="stat"><b id="n-sharers">—</b><s>Members</s></div>
+    <div class="stat"><b id="n-plays">—</b><s>Plays</s></div>
+    <div class="stat"><b id="n-react">—</b><s>Reactions</s></div>
+  </div>
+
+  <div class="card">
+    <h3>Import from WhatsApp Export</h3>
+    <label>In WhatsApp: open Music Fellowship → ⋮ → More → Export Chat → Without Media. Parsed entirely in your browser — no size limits.</label>
+    <input type="file" id="file" accept=".txt,text/plain" style="margin-top:4px"/>
+    <button class="btn" id="import-btn" style="margin-top:8px">Upload &amp; Sync</button>
+    <div class="st" id="import-st"></div>
+  </div>
+
+  <div class="card">
+    <h3>Enrich Missing Data</h3>
+    <label>Retry resolution for tracks missing title, artist, Spotify URL, or Apple Music ID. Run after import to fill gaps.</label>
+    <button class="btn sec" id="enrich-btn" style="margin-top:8px">Enrich Missing Tracks</button>
+    <div class="st" id="enrich-st"></div>
+  </div>
+
+  <div class="card">
+    <h3>YouTube Playlist</h3>
+    <label>Playlist: <a href="https://www.youtube.com/playlist?list=PLCAHLCyIUVd4GrKHuo1XMPtUwi-aJ0JMl" target="_blank" style="color:var(--blue)">View ↗</a></label>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn sec" id="yt-btn">Sync Now</button>
+    </div>
+    <div class="st" id="yt-st"></div>
+  </div>
+
+  <div class="card">
+    <h3>Spotify Playlist</h3>
+    <label>Playlist: <a href="https://open.spotify.com/playlist/7LfI3fegT1MYwnoqGlHLto" target="_blank" style="color:var(--blue)">View ↗</a></label>
+    <label style="margin-top:6px;display:block;font-size:0.78rem;color:#8e8e93;">Syncs via Mac mini Playwright. Queue it here and it’ll run within ~15 min.</label>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn sec" id="spotify-sync-btn">Queue Spotify Sync</button>
+    </div>
+    <div class="st" id="spotify-st"></div>
+  </div>
+
+  <div class="card">
+    <h3>Apple Music Playlist</h3>
+    <label>Playlist: <a href="https://music.apple.com/us/playlist/music-fellowship/pl.u-4JomKEJTmZ27ym" target="_blank" style="color:var(--blue)">View ↗</a></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button class="btn sec" id="apple-sync-btn">Sync Apple Music</button>
+    </div>
+    <div class="st" id="apple-st"></div>
+    <div id="apple-modal-trigger" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <h3>Export</h3>
+    <label>Download full track list as CSV.</label>
+    <div style="margin-top:8px">
+      <a class="btn sec" href="/api/radio/export.csv?filter=all" download>⬇ Download CSV</a>
+    </div>
+  </div>
+
+  <div class="card red">
+    <h3>Danger Zone</h3>
+    <label>Permanently delete all tracks, plays, reactions, and share history.</label>
+    <button class="btn red" id="wipe-btn" style="margin-top:8px">Wipe Database</button>
+    <div class="st" id="wipe-st"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var CREDS = { u: 'aa', p: 'guts' };
+  var MUSIC_HOSTS = ['open.spotify.com','spotify.link','music.youtube.com','youtube.com','www.youtube.com','youtu.be','music.apple.com','song.link'];
+
+  function isMusicUrl(url) {
+    try {
+      var h = new URL(url).hostname.toLowerCase();
+      return MUSIC_HOSTS.some(function(d) { return h === d || h.endsWith('.'+d); });
+    } catch(e) { return false; }
+  }
+
+  function parseWADate(ds, ts) {
+    if (!ds || !ts) return null;
+    try {
+      var sep = ds.indexOf('/') > -1 ? '/' : '.';
+      var parts = ds.split(sep);
+      if (parts.length < 3) return null;
+      var yr = parseInt(parts[2]); if (yr < 100) yr += 2000;
+      var mo = parseInt(parts[0]) - 1; // 0-based
+      var dy = parseInt(parts[1]);
+      var tc = ts.trim();
+      var pm = /pm/i.test(tc), am = /am/i.test(tc);
+      var t = tc.replace(/\s*[ap]m/gi, '').trim().split(':');
+      var h = parseInt(t[0])||0, m = parseInt(t[1])||0, s = parseInt(t[2])||0;
+      if (pm && h < 12) h += 12;
+      if (am && h === 12) h = 0;
+      var d = new Date(yr, mo, dy, h, m, s);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    } catch(e) { return null; }
+  }
+
+  // Handles [M/D/YY, H:MM:SS AM] and M/D/YY, H:MM AM -
+  var LINE = /^(?:\[(\d{1,2}[\/.]?\d{1,2}[\/.]?\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?)\]\s*|(\d{1,2}[\/.]?\d{1,2}[\/.]?\d{2,4}),\s*(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?)\s+-\s*)([^:]+):\s*(.*)/i;
+  var URLR = /https?:\/\/[^\s<>"]+/gi;
+
+  function parseExport(text) {
+    var found = [], seen = {}, cur = null;
+    var lines = text.split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var m = LINE.exec(lines[i]);
+      if (m) {
+        cur = {
+          author: (m[5]||'').trim().replace(/^[\u202f\u00a0~\s]+/,'').trim(),
+          ts: parseWADate(m[1]||m[3], m[2]||m[4]),
+          body: m[6]||''
+        };
+      } else if (cur) {
+        cur.body += ' ' + lines[i];
+      }
+      // Scan current line and any body for music URLs
+      var scan = lines[i];
+      var urls = scan.match(URLR) || [];
+      for (var j = 0; j < urls.length; j++) {
+        var u = urls[j].replace(/[)\].,!?<>"]+$/,'');
+        if (isMusicUrl(u) && !seen[u]) {
+          seen[u] = true;
+          found.push({ url: u, author: cur ? cur.author : '', timestampISO: cur ? cur.ts : null });
+        }
+      }
+    }
+    return found;
+  }
+
+  function checkAuth() { return sessionStorage.getItem('mf_admin') === '1'; }
+
+  function showPanel() {
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('panel').style.display = 'block';
+    loadStats();
+  }
+
+  if (checkAuth()) showPanel();
+
+  document.getElementById('sign-in').addEventListener('click', function() {
+    var u = document.getElementById('u').value.trim().toLowerCase();
+    var p = document.getElementById('p').value.trim().toLowerCase();
+    if (u === CREDS.u && p === CREDS.p) { sessionStorage.setItem('mf_admin','1'); showPanel(); }
+    else { document.getElementById('err').style.display = 'block'; }
+  });
+  document.getElementById('p').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('sign-in').click();
+  });
+
+  function loadStats() {
+    fetch('/api/radio/stats', { headers: { 'Content-Type': 'application/json' } })
+      .then(function(r) { return r.json(); })
+      .then(function(s) {
+        document.getElementById('n-tracks').textContent = s.tracks || 0;
+        document.getElementById('n-sharers').textContent = s.sharers || 0;
+        document.getElementById('n-plays').textContent = s.plays || 0;
+        document.getElementById('n-react').textContent = s.reactions || 0;
+      }).catch(function(){});
+  }
+
+  document.getElementById('import-btn').addEventListener('click', function() {
+    var fileEl = document.getElementById('file');
+    var st = document.getElementById('import-st');
+    var f = fileEl.files && fileEl.files[0];
+    if (!f) { st.textContent = 'Pick a .txt file first.'; return; }
+    document.getElementById('import-btn').disabled = true;
+    st.textContent = 'Reading file\u2026';
+
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var found = parseExport(e.target.result);
+      if (!found.length) {
+        st.textContent = '\u2717 No music links found. Make sure this is the Music Fellowship export.';
+        document.getElementById('import-btn').disabled = false;
+        fileEl.value = '';
+        return;
+      }
+      st.textContent = 'Found ' + found.length + ' links. Importing\u2026';
+      var added = 0, skipped = 0, errors = 0, idx = 0;
+
+      function next() {
+        if (idx >= found.length) {
+          st.textContent = '\u2713 Done: ' + added + ' new, ' + skipped + ' existing, ' + errors + ' errors.';
+          if (added > 0) loadStats();
+          document.getElementById('import-btn').disabled = false;
+          fileEl.value = '';
+          return;
+        }
+        var batch = found.slice(idx, idx + 1);
+        idx += 1;
+        fetch('/api/radio/import-urls', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ urls: batch })
+        }).then(function(r) { return r.json(); })
+          .then(function(d) {
+            added += d.added || 0;
+            skipped += d.skipped || 0;
+            errors += d.errors || 0;
+            st.textContent = 'Importing\u2026 ' + Math.min(idx, found.length) + '/' + found.length + ' (\u2713 ' + added + ' new)';
+            next();
+          }).catch(function() { errors += batch.length; next(); });
+      }
+      next();
+    };
+    reader.readAsText(f);
+  });
+
+  function runEnrich(statusEl) {
+    var total = 0;
+    var lastRemaining = -1;
+    function pass() {
+      fetch('/api/radio/enrich?limit=10', {method:'POST',headers:{'Content-Type':'application/json'}})
+        .then(function(r){return r.json();})
+        .then(function(d){
+          total += d.enriched || 0;
+          var rem = d.remaining || 0;
+          if (rem > 0 && d.enriched > 0 && rem !== lastRemaining) {
+            lastRemaining = rem;
+            if (statusEl) statusEl.textContent = 'Enriching... ' + total + ' filled, ' + rem + ' remaining';
+            setTimeout(pass, 800);
+          } else {
+            if (statusEl) statusEl.textContent = '\u2713 Done: ' + total + ' filled. ' + (rem>0 ? rem + ' tracks unresolvable.' : 'All resolved!');
+            loadStats();
+          }
+        }).catch(function(){if(statusEl)statusEl.textContent='\u2713 Complete ('+total+' filled).';});
+    }
+    pass();
+  }
+
+  document.getElementById('enrich-btn').addEventListener('click', function() {
+    document.getElementById('enrich-btn').disabled = true;
+    var st = document.getElementById('enrich-st');
+    st.textContent = 'Enriching...';
+    runEnrich(st);
+    setTimeout(function() { document.getElementById('enrich-btn').disabled = false; }, 5000);
+  });
+
+  document.getElementById('wipe-btn').addEventListener('click', function() {
+    if (!confirm('Permanently delete ALL tracks, plays, reactions, and import history?')) return;
+    var st = document.getElementById('wipe-st');
+    st.textContent = 'Wiping\u2026';
+    fetch('/api/radio/wipe', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        st.textContent = d.ok ? '\u2713 Wiped. ' + d.deleted + ' tracks removed.' : '\u2717 ' + (d.error||'failed');
+        if (d.ok) ['n-tracks','n-plays','n-react'].forEach(function(id){ document.getElementById(id).textContent='0'; });
+      }).catch(function(e) { st.textContent = '\u2717 ' + e.message; });
+  });
+
+  // ── YouTube sync ─────────────────────────────────────────────────────────
+  document.getElementById('yt-btn').addEventListener('click', function() {
+    var btn = document.getElementById('yt-btn');
+    var st = document.getElementById('yt-st');
+    btn.disabled = true; st.textContent = 'Syncing YouTube…';
+    fetch('/api/radio/youtube-sync', {method:'POST'})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var errMsg = (d.error||'failed').replace(/<[^>]*>/g,''); st.textContent = d.ok ? '✓ Added: '+d.added+' | Skipped: '+d.skipped : '✗ '+errMsg;
+        btn.disabled = false;
+      }).catch(function(e){st.textContent='✗ '+e.message;btn.disabled=false;});
+  });
+
+  // ── Spotify sync (queues Mac mini Playwright) ─────────────────────────────
+  document.getElementById('spotify-sync-btn').addEventListener('click', function() {
+    var btn = document.getElementById('spotify-sync-btn');
+    var st = document.getElementById('spotify-st');
+    btn.disabled = true; st.textContent = 'Queuing…';
+    fetch('/api/radio/request-sync', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'spotify'})})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        st.textContent = d.ok ? '✓ Queued — Playwright will run within ~15 min' : '✗ '+(d.error||'failed');
+        btn.disabled = false;
+      }).catch(function(e){st.textContent='✗ '+e.message;btn.disabled=false;});
+  });
+
+  // ── Apple Music sync ──────────────────────────────────────────────────────
+  document.getElementById('apple-sync-btn').addEventListener('click', async function() {
+    var btn = document.getElementById('apple-sync-btn');
+    var st = document.getElementById('apple-st');
+    btn.disabled = true; st.textContent = 'Connecting…';
+    try {
+      if (!window.MusicKit) { await new Promise(function(res,rej){var s=document.createElement('script');s.src='https://js-cdn.music.apple.com/musickit/v3/musickit.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);}); }
+      var tr = await fetch('/api/radio/apple-token'); var { token: devToken } = await tr.json();
+      var mk = await MusicKit.configure({ developerToken: devToken, app: { name: 'Music Fellowship', build: '1.0' } });
+      await mk.authorize();
+      var userToken = mk.musicUserToken;
+      if (!userToken) throw new Error('Authorization failed');
+      await fetch('/api/radio/store-apple-token', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:userToken})});
+      st.textContent = 'Syncing…';
+      var r = await fetch('/api/radio/apple-sync', {method:'POST'});
+      var d = await r.json();
+      st.textContent = d.ok ? '✓ '+d.added+' tracks synced to Apple Music' : '✗ '+(d.error||'failed');
+    } catch(e) { st.textContent = '✗ ' + e.message; }
+    btn.disabled = false;
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Music Fellowship</title>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="stylesheet" href="/style.v2.css" />
+</head>
+<body>
+
+  <!-- Login overlay (disabled - open access) -->
+
+  <header class="topbar">
+    <div class="brand">
+      <img src="/guts-logo.png" alt="GUTS" class="brand-logo" />
+      <div class="brand-text"><h1>Music Fellowship</h1></div>
+    </div>
+    <div class="topbar-right">
+      <span class="stats" id="stats"></span>
+      <button class="reset-btn" id="reset-btn" title="Reset">↺</button>
+    </div>
+  </header>
+
+  <nav class="playlist-tabs" id="playlist-tabs">
+    <button class="ptab active" data-tab="tracklist">Tracklist</button>
+    <button class="ptab" data-tab="spotify">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+      Spotify
+    </button>
+    <button class="ptab" data-tab="apple">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M23.994 6.124a9.23 9.23 0 00-.24-2.19c-.317-1.31-1.064-2.31-2.19-3.09a5.33 5.33 0 00-1.72-.77c-.63-.15-1.26-.19-1.9-.19H6.026c-.55 0-1.1.04-1.64.13C3.14.19 2.19.78 1.38 1.67.65 2.49.17 3.49.04 4.61A11.17 11.17 0 000 6.01v11.96c0 .51.04 1.01.12 1.51.2 1.24.78 2.26 1.69 3.08.82.74 1.81 1.18 2.91 1.35.55.09 1.1.11 1.66.11h11.29c.6 0 1.2-.04 1.79-.15 1.07-.19 2.01-.65 2.79-1.38.87-.81 1.42-1.82 1.6-3 .1-.59.14-1.19.14-1.79V6.12zm-6.97 9.26c0 .14-.01.28-.04.42a1.8 1.8 0 01-.87 1.25c-.27.16-.57.24-.88.24-.66 0-1.28-.37-1.64-.93l-.02-.03-3.43-5.93v6.57c0 .12-.01.25-.03.37a1.79 1.79 0 01-1.77 1.48 1.79 1.79 0 01-1.78-1.78V8.62c0-.12.01-.25.03-.37A1.79 1.79 0 018.38 6.77c.66 0 1.28.37 1.64.93l.02.03 3.43 5.93V7.09c0-.12.01-.25.03-.37A1.79 1.79 0 0115.27 5.3c.99 0 1.79.8 1.79 1.79v8.27z"/></svg>
+      Apple Music
+    </button>
+    <button class="ptab" data-tab="youtube">
+      <svg width="14" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+      YouTube
+    </button>
+  </nav>
+
+  <!-- Embed panels -->
+  <div class="embed-panel" id="embed-spotify" style="display:none">
+    <iframe style="border-radius:12px" src="https://open.spotify.com/embed/playlist/7LfI3fegT1MYwnoqGlHLto?utm_source=generator&theme=0" width="100%" height="100%" frameBorder="0" allowfullscreen allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+  </div>
+  <div class="embed-panel" id="embed-apple" style="display:none">
+    <iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="100%" style="width:100%;overflow:hidden;border-radius:12px;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.music.apple.com/us/playlist/music-fellowship/pl.u-4JomKEJTmZ27ym"></iframe>
+  </div>
+  <div class="embed-panel yt-panel" id="embed-youtube" style="display:none">
+    <div class="yt-player-wrap" id="yt-player-wrap" style="display:none">
+      <iframe id="yt-inline-player" width="100%" height="100%" frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen></iframe>
+    </div>
+    <div class="yt-header">
+      <a class="link-pill yt-pill" href="https://www.youtube.com/playlist?list=PLCAHLCyIUVd4GrKHuo1XMPtUwi-aJ0JMl" target="_blank" rel="noopener">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        Open in YouTube
+      </a>
+      <span class="yt-count" id="yt-count"></span>
+    </div>
+    <div class="yt-grid" id="yt-grid"><div class="yt-loading">Loading…</div></div>
+  </div>
+
+  <main class="app-main" id="tab-tracklist">
+
+    <!-- NOW PLAYING -->
+    <section class="now-playing" id="now-playing-card">
+
+      <div class="np-row np-top">
+        <div class="np-title-block">
+          <span class="kicker">Now playing</span>
+          <h2 id="title">Loading…</h2>
+          <p id="artist"></p>
+        </div>
+        <div class="np-controls">
+          <button id="btn-play" class="primary">▶ Play</button>
+          <button id="btn-skip" class="secondary">⏭</button>
+          <button id="btn-mute" title="Mute">🔇</button>
+          <a class="btn-share" href="https://chat.whatsapp.com/J11yWqoXWqL7ZCWBpEoixA" target="_blank" rel="noopener">💬 Share</a>
+        </div>
+      </div>
+
+      <div class="np-row np-meta">
+        <p class="shared-by" id="shared-by"></p>
+        <div class="reactions" id="reactions">
+          <button data-react="heart" title="Love it">❤️ <span class="count" data-count="heart">0</span></button>
+          <button data-react="fire" title="Fire!">🔥 <span class="count" data-count="fire">0</span></button>
+          <button data-react="hundred" title="100%">💯 <span class="count" data-count="hundred">0</span></button>
+          <button data-react="prayer" title="Praying hands">🙏 <span class="count" data-count="prayer">0</span></button>
+        </div>
+        <p class="commentary" id="commentary" style="display:none"></p>
+      </div>
+
+      <div class="np-row np-links">
+        <span class="links-label">Song</span>
+        <a id="link-songlink" class="link-pill" href="#" target="_blank" rel="noopener">🔗 song.link</a>
+        <a id="link-youtube" class="link-pill" href="#" target="_blank" rel="noopener">▶ YouTube</a>
+        <a id="link-spotify" class="link-pill" href="#" target="_blank" rel="noopener">🎵 Spotify</a>
+        <a id="link-apple" class="link-pill" href="#" target="_blank" rel="noopener">🍎 Apple</a>
+      </div>
+
+      <div class="np-player" id="np-player-wrap" style="display:none">
+        <div class="source-tabs" id="source-tabs"></div>
+        <div id="player" class="player-empty"></div>
+        <p class="mini-hint" id="player-hint" style="display:none"></p>
+      </div>
+
+    </section>
+
+    <!-- PLAYLIST -->
+    <section class="catalog">
+      <div class="catalog-header">
+        <h3>Playlist <span id="catalog-count" class="muted"></span></h3>
+        <div class="catalog-controls">
+          <button class="shuffle-btn" id="shuffle-btn">⇄ Shuffle</button>
+          <div class="filter-bar" id="filter-bar">
+            <button class="filter-btn active" data-filter="all">All <span class="filter-badge" id="badge-all"></span></button>
+            <button class="filter-btn" data-filter="month">Month <span class="filter-badge" id="badge-month"></span></button>
+            <button class="filter-btn" data-filter="week">Week <span class="filter-badge" id="badge-week"></span></button>
+            <button class="filter-btn" data-filter="today">Today <span class="filter-badge" id="badge-today"></span></button>
+          </div>
+        </div>
+      </div>
+
+      <input type="search" id="search-input" class="search-input" placeholder="Search tracks, artists, people…" autocomplete="off" />
+
+      <table id="catalog-table">
+        <colgroup>
+          <col style="width:24px">
+          <col>
+          <col style="width:100px">
+          <col style="width:58px">
+          <col style="width:110px">
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="drag-col"></th>
+            <th class="sortable" data-sort="title">Track <span class="sort-icon"></span></th>
+            <th class="sortable sharer-col" data-sort="author">Shared by <span class="sort-icon"></span></th>
+            <th class="sortable" data-sort="date">Date <span class="sort-icon">▼</span></th>
+            <th class="react-col">Reactions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <footer>
+      <div class="footer-join">
+        <img src="/music-fellowship-qr.png" alt="Join Music Fellowship" class="join-qr" />
+        <div class="join-text">
+          <a href="https://chat.whatsapp.com/J11yWqoXWqL7ZCWBpEoixA" target="_blank" rel="noopener"><strong>Music Fellowship</strong></a>
+          <p>Scan or click to join and share a song.</p>
+        </div>
+      </div>
+      <p class="footer-credit">Links via <a href="https://song.link" target="_blank" rel="noopener">song.link</a> &nbsp;·&nbsp; <a href="/admin/" target="_blank" class="admin-link">•</a></p>
+    </footer>
+
+  </main>
+
+  <!-- Export progress modal -->
+  <div id="export-modal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.75);align-items:center;justify-content:center">
+    <div style="background:#1c1c1f;border:1px solid #48484a;border-radius:16px;padding:28px 28px 20px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6)">
+      <!-- Apple Music gradient icon -->
+      <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#fc3c44,#fc6d4b);margin:0 auto 14px;display:flex;align-items:center;justify-content:center">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="white"><path fill-rule="evenodd" d="M23.994 6.124a9.23 9.23 0 00-.24-2.19c-.317-1.31-1.064-2.31-2.19-3.09a5.33 5.33 0 00-1.72-.77c-.63-.15-1.26-.19-1.9-.19H6.026c-.55 0-1.1.04-1.64.13C3.14.19 2.19.78 1.38 1.67.65 2.49.17 3.49.04 4.61A11.17 11.17 0 000 6.01v11.96c0 .51.04 1.01.12 1.51.2 1.24.78 2.26 1.69 3.08.82.74 1.81 1.18 2.91 1.35.55.09 1.1.11 1.66.11h11.29c.6 0 1.2-.04 1.79-.15 1.07-.19 2.01-.65 2.79-1.38.87-.81 1.42-1.82 1.6-3 .1-.59.14-1.19.14-1.79V6.12zm-6.97 9.26c0 .14-.01.28-.04.42a1.8 1.8 0 01-.87 1.25c-.27.16-.57.24-.88.24-.66 0-1.28-.37-1.64-.93l-.02-.03-3.43-5.93v6.57c0 .12-.01.25-.03.37a1.79 1.79 0 01-1.77 1.48 1.79 1.79 0 01-1.78-1.78V8.62c0-.12.01-.25.03-.37A1.79 1.79 0 018.38 6.77c.66 0 1.28.37 1.64.93l.02.03 3.43 5.93V7.09c0-.12.01-.25.03-.37A1.79 1.79 0 0115.27 5.3c.99 0 1.79.8 1.79 1.79v8.27z"/></svg>
+      </div>
+      <div style="font-weight:700;font-size:1rem;margin-bottom:6px;color:#fff" id="modal-title">Apple Music</div>
+      <div style="font-size:0.82rem;color:#aeaeb2;margin-bottom:14px;line-height:1.4" id="modal-status">Connecting…</div>
+      <div style="background:#2c2c2f;border-radius:99px;height:3px;overflow:hidden;margin-bottom:16px">
+        <div id="modal-bar" style="background:linear-gradient(90deg,#fc3c44,#fc6d4b);height:100%;width:0%;transition:width 0.4s"></div>
+      </div>
+      <div id="modal-actions">
+        <button onclick="document.getElementById('export-modal').style.display='none'" style="background:#3a3a3c;border:none;border-radius:8px;padding:8px 20px;color:#aeaeb2;cursor:pointer;font-size:0.82rem">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mini player (mobile) -->
+  <div class="mini-player" id="mini-player">
+    <div class="mini-thumb-wrap">
+      <img class="mini-thumb" id="mini-thumb" alt="" />
+    </div>
+    <div class="mini-info" id="mini-info">
+      <div class="mini-title" id="mini-title">Nothing playing</div>
+      <div class="mini-artist" id="mini-artist"></div>
+    </div>
+    <div class="mini-controls">
+      <button class="mini-btn play" id="mini-play">▶</button>
+      <button class="mini-btn" id="mini-skip">⏭</button>
+    </div>
+  </div>
+
+  <script>window.SPOTIFY_CLIENT_ID = 'a44ee770dbc6440d8dc429f415deb665';</script>
+  <script>
+  (function() {
+    var tabs = document.querySelectorAll('.ptab');
+    var panels = { tracklist: document.getElementById('tab-tracklist') };
+    ['spotify','apple','youtube'].forEach(function(id) { panels[id] = document.getElementById('embed-'+id); });
+    var ytLoaded = false;
+
+    function loadYouTubeGrid() {
+      if (ytLoaded) return;
+      ytLoaded = true;
+      fetch('/api/radio/all?filter=all')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          var tracks = (d.tracks || []).filter(function(t) { return t.youtube_id; });
+          var grid = document.getElementById('yt-grid');
+          var count = document.getElementById('yt-count');
+          if (count) count.textContent = tracks.length + ' videos';
+          if (!grid) return;
+          grid.innerHTML = tracks.map(function(t) {
+            var title = t.title || '(untitled)';
+            var artist = t.artist || '';
+            var thumb = 'https://img.youtube.com/vi/' + t.youtube_id + '/mqdefault.jpg';
+            return '<div class="yt-card" data-ytid="' + t.youtube_id + '">'
+              + '<img class="yt-thumb" src="' + thumb + '" alt="" loading="lazy">'
+              + '<div class="yt-info"><div class="yt-title">' + title + '</div>'
+              + (artist ? '<div class="yt-artist">' + artist + '</div>' : '')
+              + '</div>'
+              + '<span class="yt-play-icon">▶</span>'
+              + '</div>';
+          }).join('');
+          grid.addEventListener('click', function(e) {
+            var card = e.target.closest('.yt-card');
+            if (!card) return;
+            var ytId = card.dataset.ytid;
+            var player = document.getElementById('yt-inline-player');
+            var wrap = document.getElementById('yt-player-wrap');
+            if (!player || !ytId) return;
+            player.src = 'https://www.youtube.com/embed/' + ytId + '?autoplay=1&list=PLCAHLCyIUVd4GrKHuo1XMPtUwi-aJ0JMl&rel=0';
+            wrap.style.display = '';
+            grid.querySelectorAll('.yt-card').forEach(function(c) { c.classList.remove('yt-active'); });
+            card.classList.add('yt-active');
+            wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          });
+        }).catch(function() {
+          var grid = document.getElementById('yt-grid');
+          if (grid) grid.innerHTML = '<div class="yt-loading">Could not load tracks.</div>';
+        });
+    }
+
+    tabs.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var tab = btn.dataset.tab;
+        tabs.forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        Object.keys(panels).forEach(function(k) {
+          if (panels[k]) panels[k].style.display = (k === tab) ? '' : 'none';
+        });
+        if (tab === 'youtube') loadYouTubeGrid();
+      });
+    });
+  })();
+  </script>
+  <script src="https://js-cdn.music.apple.com/musickit/v3/musickit.js" async></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script src="/spotify-auth.v2.js"></script>
+  <script src="/apple-music.v2.js"></script>
+  <script src="/player.v2.js"></script>
+</body>
+</html>

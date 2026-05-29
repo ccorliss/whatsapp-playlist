@@ -1,0 +1,19 @@
+{
+  "name": "whatsapp-watcher",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Watch selected WhatsApp groups, store messages, generate daily digests, and auto-process Audio Anonymous speaker audio.",
+  "type": "commonjs",
+  "main": "watcher.js",
+  "scripts": {
+    "login": "node login.js",
+    "list": "node list-groups.js",
+    "select": "node select-groups.js",
+    "watch": "node watcher.js",
+    "digest": "node digest.js"
+  },
+  "dependencies": {
+    "whatsapp-web.js": "^1.26.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
