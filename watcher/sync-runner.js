@@ -59,7 +59,13 @@ async function check() {
   log('New unsynced Spotify tracks found — running sync...');
   try {
     execSync(`node ${path.join(__dirname, 'spotify-sync.js')}`, { stdio: 'inherit' });
-    log('Spotify sync complete.');
+    const synced = loadSynced();
+    await fetch(`${RADIO_API_URL}/api/radio/sync-complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'spotify', added: synced.size, at: new Date().toISOString() }),
+    }).catch(() => {});
+    log(`Spotify sync complete. Total synced: ${synced.size}`);
   } catch (e) {
     log('Spotify sync failed:', e.message);
   }

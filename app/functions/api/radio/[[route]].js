@@ -943,10 +943,12 @@ export async function onRequest({ request, env, params }) {
 
   // POST /sync-complete — Mac mini reports sync done
   if (path === '/sync-complete' && method === 'POST') {
-    const { type, added, failed, message } = await request.json().catch(() => ({}));
+    const { type, added, failed, message, synced_count, at } = await request.json().catch(() => ({}));
     if (type) {
       await env.RADIO_SECRETS.delete(`sync_${type}_requested`);
-      await env.RADIO_SECRETS.put(`sync_${type}_status`, JSON.stringify({ done: true, added, failed, message, at: new Date().toISOString() }));
+      await env.RADIO_SECRETS.put(`sync_${type}_status`, JSON.stringify({ done: true, added, failed, message, at: at || new Date().toISOString() }));
+      if (synced_count != null) await env.RADIO_SECRETS.put(`${type}_synced_count`, String(synced_count));
+      else if (added != null) await env.RADIO_SECRETS.put(`${type}_synced_count`, String(added));
     }
     return json({ ok: true });
   }
@@ -1146,6 +1148,71 @@ export async function onRequest({ request, env, params }) {
     } catch(e) {
       return json({ ok: false, error: 'Auth check failed' }, 500);
     }
+  }
+
+  // GET /playlist-status — counts across D1, YouTube playlist, Spotify/Apple sync state
+  if (path === '/playlist-status' && method === 'GET') {
+    const ytKey       = await env.RADIO_SECRETS.get('youtube_api_key').catch(() => null) || env.YOUTUBE_API_KEY || null;
+    const ytPlaylist  = env.YOUTUBE_PLAYLIST_ID || null;
+    const spPlaylist  = env.SPOTIFY_PLAYLIST_ID || await env.RADIO_SECRETS.get('spotify_playlist_id').catch(() => null) || null;
+
+    // D1 counts
+    const [total, hasYT, hasSpotify, hasApple, lastTrack] = await Promise.all([
+      db.prepare("SELECT COUNT(*) AS n FROM tracks WHERE enabled=1").first(),
+      db.prepare("SELECT COUNT(*) AS n FROM tracks WHERE enabled=1 AND youtube_id IS NOT NULL").first(),
+      db.prepare("SELECT COUNT(*) AS n FROM tracks WHERE enabled=1 AND spotify_url IS NOT NULL AND spotify_url LIKE '%spotify%'").first(),
+      db.prepare("SELECT COUNT(*) AS n FROM tracks WHERE enabled=1 AND apple_music_id IS NOT NULL").first(),
+      db.prepare("SELECT title, artist, shared_at FROM tracks WHERE enabled=1 ORDER BY COALESCE(shared_at, added_at) DESC LIMIT 1").first(),
+    ]);
+
+    const d1 = {
+      total: total?.n ?? 0,
+      with_youtube: hasYT?.n ?? 0,
+      with_spotify: hasSpotify?.n ?? 0,
+      with_apple: hasApple?.n ?? 0,
+      last_track: lastTrack ? { title: lastTrack.title, artist: lastTrack.artist, shared_at: lastTrack.shared_at } : null,
+    };
+
+    // YouTube playlist count
+    let youtube = { playlist_id: ytPlaylist, total: null, last_track: null, error: null };
+    if (ytKey && ytPlaylist) {
+      try {
+        const [plR, itemsR] = await Promise.all([
+          fetch(`https://www.googleapis.com/youtube/v3/playlists?part=contentDetails&id=${ytPlaylist}&key=${ytKey}`),
+          fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${ytPlaylist}&maxResults=1&key=${ytKey}`),
+        ]);
+        const [pl, items] = await Promise.all([plR.json(), itemsR.json()]);
+        youtube.total = pl.items?.[0]?.contentDetails?.itemCount ?? null;
+        const last = items.items?.[0]?.snippet;
+        if (last) youtube.last_track = { title: last.title, added_at: last.publishedAt };
+      } catch (e) { youtube.error = e.message; }
+    } else {
+      youtube.error = !ytKey ? 'YOUTUBE_API_KEY not configured' : 'YOUTUBE_PLAYLIST_ID not configured';
+    }
+
+    // Spotify sync state (from KV — sync-runner updates this)
+    let spotify = { playlist_id: spPlaylist, synced: null, last_sync: null };
+    try {
+      const spStatus = await env.RADIO_SECRETS.get('sync_spotify_status');
+      if (spStatus) {
+        const s = JSON.parse(spStatus);
+        spotify.last_sync = { at: s.at, added: s.added, failed: s.failed };
+      }
+      const spSynced = await env.RADIO_SECRETS.get('spotify_synced_count');
+      if (spSynced) spotify.synced = parseInt(spSynced, 10);
+    } catch (_) {}
+
+    // Apple Music sync state (from KV)
+    let apple = { synced: null, last_sync: null };
+    try {
+      const apStatus = await env.RADIO_SECRETS.get('sync_apple_status');
+      if (apStatus) {
+        const s = JSON.parse(apStatus);
+        apple.last_sync = { at: s.at, added: s.added };
+      }
+    } catch (_) {}
+
+    return json({ d1, youtube, spotify, apple, generated_at: new Date().toISOString() });
   }
 
   return json({ error: 'Not found' }, 404);

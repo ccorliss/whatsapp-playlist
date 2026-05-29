@@ -50,6 +50,16 @@
     <div class="stat"><b id="n-react">—</b><s>Reactions</s></div>
   </div>
 
+  <div class="card" id="playlist-status-card">
+    <h3>Playlist Status <button class="btn sec" id="refresh-status-btn" style="float:right;margin-top:-2px;font-size:12px">Refresh</button></h3>
+    <div id="playlist-status-body" style="font-size:13px">
+      <table style="width:100%;border-collapse:collapse" id="playlist-status-table">
+        <thead><tr style="opacity:.5"><th style="text-align:left;padding:4px 8px 4px 0">Source</th><th style="text-align:right;padding:4px 4px">Total</th><th style="text-align:right;padding:4px 4px">YouTube</th><th style="text-align:right;padding:4px 4px">Spotify</th><th style="text-align:right;padding:4px 4px">Apple</th><th style="text-align:left;padding:4px 8px">Last Track</th></tr></thead>
+        <tbody id="playlist-status-rows"><tr><td colspan="6" style="padding:8px 0;opacity:.5">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="card">
     <h3>Import from WhatsApp Export</h3>
     <label>In WhatsApp: open Music Fellowship → ⋮ → More → Export Chat → Without Media. Parsed entirely in your browser — no size limits.</label>
@@ -309,6 +319,71 @@
   });
 
   // ── Spotify sync (queues Mac mini Playwright) ─────────────────────────────
+  // ── Playlist status ──────────────────────────────────────────────────────
+  function loadPlaylistStatus() {
+    var rows = document.getElementById('playlist-status-rows');
+    rows.innerHTML = '<tr><td colspan="6" style="padding:8px 0;opacity:.5">Loading...</td></tr>';
+    fetch('/api/radio/playlist-status')
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        function cell(val, align) {
+          return '<td style="text-align:'+(align||'right')+';padding:4px 4px">'+(val!=null?val:'—')+'</td>';
+        }
+        function lastTrack(t) {
+          if (!t) return '—';
+          var s = (t.title||'?');
+          if (t.artist) s += ' — ' + t.artist;
+          if (t.shared_at||t.added_at) s += ' <span style="opacity:.5">' + new Date(t.shared_at||t.added_at).toLocaleDateString() + '</span>';
+          return s;
+        }
+        var html = '';
+        // D1 row
+        html += '<tr style="border-top:1px solid rgba(0,0,0,.07)">';
+        html += '<td style="padding:6px 8px 6px 0;font-weight:600">D1 (database)</td>';
+        html += cell(d.d1.total);
+        html += cell(d.d1.with_youtube + ' <span style="opacity:.4">/'+d.d1.total+'</span>');
+        html += cell(d.d1.with_spotify + ' <span style="opacity:.4">/'+d.d1.total+'</span>');
+        html += cell(d.d1.with_apple + ' <span style="opacity:.4">/'+d.d1.total+'</span>');
+        html += '<td style="padding:4px 8px;font-size:12px">' + lastTrack(d.d1.last_track) + '</td>';
+        html += '</tr>';
+        // YouTube row
+        html += '<tr style="border-top:1px solid rgba(0,0,0,.07)">';
+        html += '<td style="padding:6px 8px 6px 0">YouTube playlist</td>';
+        html += cell(d.youtube.error ? '<span style="opacity:.4">'+d.youtube.error+'</span>' : d.youtube.total);
+        html += cell(d.youtube.total);
+        html += cell('—');
+        html += cell('—');
+        html += '<td style="padding:4px 8px;font-size:12px">' + lastTrack(d.youtube.last_track ? {title:d.youtube.last_track.title, shared_at:d.youtube.last_track.added_at} : null) + '</td>';
+        html += '</tr>';
+        // Spotify row
+        var spLast = d.spotify.last_sync ? 'synced ' + new Date(d.spotify.last_sync.at).toLocaleDateString() + (d.spotify.last_sync.added ? ' (+'+d.spotify.last_sync.added+')' : '') : '—';
+        html += '<tr style="border-top:1px solid rgba(0,0,0,.07)">';
+        html += '<td style="padding:6px 8px 6px 0">Spotify playlist</td>';
+        html += cell(d.spotify.synced || '—');
+        html += cell('—');
+        html += cell(d.spotify.synced || '—');
+        html += cell('—');
+        html += '<td style="padding:4px 8px;font-size:12px;opacity:.6">' + spLast + '</td>';
+        html += '</tr>';
+        // Apple row
+        var apLast = d.apple.last_sync ? 'synced ' + new Date(d.apple.last_sync.at).toLocaleDateString() : '—';
+        html += '<tr style="border-top:1px solid rgba(0,0,0,.07)">';
+        html += '<td style="padding:6px 8px 6px 0">Apple Music</td>';
+        html += cell(d.apple.synced || '—');
+        html += cell('—');
+        html += cell('—');
+        html += cell(d.apple.synced || '—');
+        html += '<td style="padding:4px 8px;font-size:12px;opacity:.6">' + apLast + '</td>';
+        html += '</tr>';
+        rows.innerHTML = html;
+      })
+      .catch(function(e) {
+        rows.innerHTML = '<tr><td colspan="6" style="padding:8px 0;color:#c00">Error: '+e.message+'</td></tr>';
+      });
+  }
+  loadPlaylistStatus();
+  document.getElementById('refresh-status-btn').addEventListener('click', loadPlaylistStatus);
+
   document.getElementById('spotify-sync-btn').addEventListener('click', function() {
     var btn = document.getElementById('spotify-sync-btn');
     var st = document.getElementById('spotify-st');
