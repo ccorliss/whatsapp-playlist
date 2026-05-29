@@ -79,7 +79,7 @@
     <label>Playlist: <a href="https://open.spotify.com/playlist/7LfI3fegT1MYwnoqGlHLto" target="_blank" style="color:var(--blue)">View ↗</a></label>
     <label style="margin-top:6px;display:block;font-size:0.78rem;color:#8e8e93;">Syncs via Mac mini Playwright. Queue it here and it’ll run within ~15 min.</label>
     <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="btn sec" id="spotify-sync-btn">Queue Spotify Sync</button>
+      <button class="btn sec" id="spotify-sync-btn">Sync Spotify (auto)</button>
     </div>
     <div class="st" id="spotify-st"></div>
   </div>
@@ -313,10 +313,14 @@
     var btn = document.getElementById('spotify-sync-btn');
     var st = document.getElementById('spotify-st');
     btn.disabled = true; st.textContent = 'Queuing…';
-    fetch('/api/radio/request-sync', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'spotify'})})
+    // Spotify sync runs automatically via sync-runner.js on the Mac/VPS.
+    // This button is informational — show current sync state.
+    fetch('/api/radio/sync-status')
       .then(function(r){return r.json();})
       .then(function(d){
-        st.textContent = d.ok ? '✓ Queued — Playwright will run within ~15 min' : '✗ '+(d.error||'failed');
+        var sp = d.spotify || {};
+        if (sp.done) st.textContent = '✓ Last sync: ' + (sp.at ? new Date(sp.at).toLocaleString() : 'recently') + (sp.added ? ' (' + sp.added + ' added)' : '');
+        else st.textContent = 'Sync runner handles this automatically when new tracks arrive.';
         btn.disabled = false;
       }).catch(function(e){st.textContent='✗ '+e.message;btn.disabled=false;});
   });
