@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Admin — Music Fellowship</title>
+  <title>Admin - Music Fellowship</title>
   <style>
     :root{--bg:#111114;--card:#1c1c1f;--alt:#2c2c2f;--blue:#2563eb;--amber:#f59e0b;--red:#ef4444;--ink:#f5f5f7;--soft:#aeaeb2;--faint:#636366;--line:#48484a;--r:10px}
     *{box-sizing:border-box;margin:0;padding:0}
@@ -42,52 +42,61 @@
 </div>
 
 <div id="panel">
-  <h2>Admin</h2>
+  <h2>Music Fellowship Playlist Manager</h2>
   <div class="grid">
-    <div class="stat"><b id="n-tracks">—</b><s>Tracks</s></div>
-    <div class="stat"><b id="n-sharers">—</b><s>Members</s></div>
+    <div class="stat"><b id="n-tracks">—</b><s>Songs</s></div>
+    <div class="stat"><b id="n-sharers">—</b><s>Contributors</s></div>
     <div class="stat"><b id="n-plays">—</b><s>Plays</s></div>
     <div class="stat"><b id="n-react">—</b><s>Reactions</s></div>
   </div>
 
+  <div class="card">
+    <h3>➕ Add a Song</h3>
+    <label>Paste any YouTube, Spotify, or Apple Music link and it’ll be added to the playlist automatically.</label>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <input id="add-song-url" type="url" placeholder="https://open.spotify.com/track/... or youtube.com/..." style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px"/>
+      <button class="btn" id="add-song-btn">Add</button>
+    </div>
+    <div class="st" id="add-song-st"></div>
+  </div>
+
   <div class="card" id="playlist-status-card">
-    <h3>Playlist Status <button class="btn sec" id="refresh-status-btn" style="float:right;margin-top:-2px;font-size:12px">Refresh</button></h3>
+    <h3>Sync Status <button class="btn sec" id="refresh-status-btn" style="float:right;margin-top:-2px;font-size:12px">Refresh</button></h3>
     <div id="playlist-status-body" style="font-size:13px">
       <table style="width:100%;border-collapse:collapse" id="playlist-status-table">
-        <thead><tr style="opacity:.5"><th style="text-align:left;padding:4px 8px 4px 0">Source</th><th style="text-align:right;padding:4px 4px">Total</th><th style="text-align:right;padding:4px 4px">YouTube</th><th style="text-align:right;padding:4px 4px">Spotify</th><th style="text-align:right;padding:4px 4px">Apple</th><th style="text-align:left;padding:4px 8px">Last Track</th></tr></thead>
+        <thead><tr style="opacity:.5"><th style="text-align:left;padding:4px 8px 4px 0">Platform</th><th style="text-align:right;padding:4px 4px">Songs</th><th style="text-align:right;padding:4px 4px">YouTube</th><th style="text-align:right;padding:4px 4px">Spotify</th><th style="text-align:right;padding:4px 4px">Apple</th><th style="text-align:left;padding:4px 8px">Last Added</th></tr></thead>
         <tbody id="playlist-status-rows"><tr><td colspan="6" style="padding:8px 0;opacity:.5">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
 
   <div class="card">
-    <h3>Import from WhatsApp Export</h3>
-    <label>In WhatsApp: open Music Fellowship → ⋮ → More → Export Chat → Without Media. Parsed entirely in your browser — no size limits.</label>
+    <h3>Import from WhatsApp Chat Export</h3>
+    <label>In WhatsApp: open Music Fellowship → tap the group name → Export Chat → Without Media. Then upload that file here to sync any songs you may have missed.</label>
     <input type="file" id="file" accept=".txt,text/plain" style="margin-top:4px"/>
     <button class="btn" id="import-btn" style="margin-top:8px">Upload &amp; Sync</button>
     <div class="st" id="import-st"></div>
   </div>
 
   <div class="card">
-    <h3>Enrich Missing Data</h3>
-    <label>Retry resolution for tracks missing title, artist, Spotify URL, or Apple Music ID. Run after import to fill gaps.</label>
-    <button class="btn sec" id="enrich-btn" style="margin-top:8px">Enrich Missing Tracks</button>
+    <h3>Fix Missing Info</h3>
+    <label>Some songs may be missing their Spotify link or Apple Music ID. Tap this to fill in any gaps automatically.</label>
+    <button class="btn sec" id="enrich-btn" style="margin-top:8px">Fill Missing Details</button>
     <div class="st" id="enrich-st"></div>
   </div>
 
   <div class="card">
     <h3>YouTube Playlist</h3>
-    <label>Playlist: <a href="https://www.youtube.com/playlist?list=PLCAHLCyIUVd4GrKHuo1XMPtUwi-aJ0JMl" target="_blank" style="color:var(--blue)">View ↗</a></label>
+    <label>Keeps the YouTube playlist up to date with all songs in the database. <a href="https://www.youtube.com/playlist?list=PLCAHLCyIUVd4GrKHuo1XMPtUwi-aJ0JMl" target="_blank" style="color:var(--blue)">View playlist ↗</a></label>
     <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="btn sec" id="yt-btn">Sync Now</button>
+      <button class="btn sec" id="yt-btn">Sync YouTube Now</button>
     </div>
     <div class="st" id="yt-st"></div>
   </div>
 
   <div class="card">
     <h3>Spotify Playlist</h3>
-    <label>Playlist: <a href="https://open.spotify.com/playlist/7LfI3fegT1MYwnoqGlHLto" target="_blank" style="color:var(--blue)">View ↗</a></label>
-    <label style="margin-top:6px;display:block;font-size:0.78rem;color:#8e8e93;">Syncs via Mac mini Playwright. Queue it here and it’ll run within ~15 min.</label>
+    <label>Syncs automatically when new songs are added. <a href="https://open.spotify.com/playlist/7LfI3fegT1MYwnoqGlHLto" target="_blank" style="color:var(--blue)">View playlist ↗</a></label>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn sec" id="spotify-sync-btn">Sync Spotify (auto)</button>
     </div>
@@ -96,7 +105,7 @@
 
   <div class="card">
     <h3>Apple Music Playlist</h3>
-    <label>Playlist: <a href="https://music.apple.com/us/playlist/music-fellowship/pl.u-4JomKEJTmZ27ym" target="_blank" style="color:var(--blue)">View ↗</a></label>
+    <label>Keeps the Apple Music playlist in sync. <a href="https://music.apple.com/us/playlist/music-fellowship/pl.u-4JomKEJTmZ27ym" target="_blank" style="color:var(--blue)">View playlist ↗</a></label>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
       <button class="btn sec" id="apple-sync-btn">Sync Apple Music</button>
     </div>
@@ -105,16 +114,16 @@
   </div>
 
   <div class="card">
-    <h3>Export</h3>
-    <label>Download full track list as CSV.</label>
+    <h3>Export Song List</h3>
+    <label>Download the full song list as a spreadsheet (CSV).</label>
     <div style="margin-top:8px">
       <a class="btn sec" href="/api/radio/export.csv?filter=all" download>⬇ Download CSV</a>
     </div>
   </div>
 
   <div class="card" id="track-editor-card">
-    <h3>Track Editor</h3>
-    <label>Click any track to edit YouTube ID, Spotify URL, Apple Music ID, title, or disable it.</label>
+    <h3>Manage Songs</h3>
+    <label>Find any song, fix its info, swap a YouTube video, or remove it from the playlist.</label>
     <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
       <input id="track-search" type="text" placeholder="Search tracks..." style="flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px"/>
       <button class="btn sec" id="track-editor-load">Load Tracks</button>
@@ -153,12 +162,15 @@
     </div>
   </div>
 
-  <div class="card red">
-    <h3>Danger Zone</h3>
-    <label>Permanently delete all tracks, plays, reactions, and share history.</label>
-    <button class="btn red" id="wipe-btn" style="margin-top:8px">Wipe Database</button>
-    <div class="st" id="wipe-st"></div>
-  </div>
+  <details style="margin-top:8px">
+    <summary style="cursor:pointer;font-size:13px;opacity:.4;padding:8px 0">Advanced options</summary>
+    <div class="card red" style="margin-top:8px">
+      <h3>Reset Everything</h3>
+      <label>Permanently deletes all songs, plays, reactions, and history. Cannot be undone.</label>
+      <button class="btn red" id="wipe-btn" style="margin-top:8px">Wipe Database</button>
+      <div class="st" id="wipe-st"></div>
+    </div>
+  </details>
 </div>
 
 <script>
@@ -350,7 +362,7 @@
   document.getElementById('yt-btn').addEventListener('click', function() {
     var btn = document.getElementById('yt-btn');
     var st = document.getElementById('yt-st');
-    btn.disabled = true; st.textContent = 'Syncing YouTube…';
+    btn.disabled = true; st.textContent = 'Syncing YouTube...';
     fetch('/api/radio/youtube-sync', {method:'POST'})
       .then(function(r){return r.json();})
       .then(function(d){
@@ -360,6 +372,37 @@
   });
 
   // ── Spotify sync (queues Mac mini Playwright) ─────────────────────────────
+  // ── Add a song ───────────────────────────────────────────────────
+  document.getElementById('add-song-btn').addEventListener('click', async function() {
+    var btn = this;
+    var st  = document.getElementById('add-song-st');
+    var url = document.getElementById('add-song-url').value.trim();
+    if (!url) { st.textContent = 'Paste a link first.'; return; }
+    btn.disabled = true; st.textContent = 'Adding…';
+    try {
+      var r = await fetch('/api/radio/import-urls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: [{ url, author: 'admin', timestampISO: new Date().toISOString() }] })
+      });
+      var d = await r.json();
+      if (d.added > 0) {
+        st.textContent = '✓ Song added!';
+        document.getElementById('add-song-url').value = '';
+        // Refresh stats
+        fetch('/api/radio/stats').then(r=>r.json()).then(d=>{ if(d.tracks) document.getElementById('n-tracks').textContent=d.tracks; });
+      } else if (d.skipped > 0) {
+        st.textContent = 'Already in the playlist.';
+      } else {
+        st.textContent = '✗ Couldn’t add that link — try a direct track URL (not a playlist or album).';
+      }
+    } catch(e) { st.textContent = '✗ ' + e.message; }
+    btn.disabled = false;
+  });
+  document.getElementById('add-song-url').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('add-song-btn').click();
+  });
+
   // ── Playlist status ──────────────────────────────────────────────────────
   function loadPlaylistStatus() {
     var rows = document.getElementById('playlist-status-rows');
@@ -368,19 +411,19 @@
       .then(function(r){ return r.json(); })
       .then(function(d) {
         function cell(val, align) {
-          return '<td style="text-align:'+(align||'right')+';padding:4px 4px">'+(val!=null?val:'—')+'</td>';
+          return '<td style="text-align:'+(align||'right')+';padding:4px 4px">'+(val!=null?val:'-')+'</td>';
         }
         function lastTrack(t) {
-          if (!t) return '—';
+          if (!t) return '-';
           var s = (t.title||'?');
-          if (t.artist) s += ' — ' + t.artist;
+          if (t.artist) s += ' - ' + t.artist;
           if (t.shared_at||t.added_at) s += ' <span style="opacity:.5">' + new Date(t.shared_at||t.added_at).toLocaleDateString() + '</span>';
           return s;
         }
         var html = '';
         // D1 row
         html += '<tr style="border-top:1px solid rgba(0,0,0,.07)">';
-        html += '<td style="padding:6px 8px 6px 0;font-weight:600">D1 (database)</td>';
+        html += '<td style="padding:6px 8px 6px 0;font-weight:600">Playlist database</td>';
         html += cell(d.d1.total);
         html += cell(d.d1.with_youtube + ' <span style="opacity:.4">/'+d.d1.total+'</span>');
         html += cell(d.d1.with_spotify + ' <span style="opacity:.4">/'+d.d1.total+'</span>');
@@ -392,28 +435,28 @@
         html += '<td style="padding:6px 8px 6px 0">YouTube playlist</td>';
         html += cell(d.youtube.error ? '<span style="opacity:.4">'+d.youtube.error+'</span>' : d.youtube.total);
         html += cell(d.youtube.total);
-        html += cell('—');
-        html += cell('—');
+        html += cell('-');
+        html += cell('-');
         html += '<td style="padding:4px 8px;font-size:12px">' + lastTrack(d.youtube.last_track ? {title:d.youtube.last_track.title, shared_at:d.youtube.last_track.added_at} : null) + '</td>';
         html += '</tr>';
         // Spotify row
-        var spLast = d.spotify.last_sync ? 'synced ' + new Date(d.spotify.last_sync.at).toLocaleDateString() + (d.spotify.last_sync.added ? ' (+'+d.spotify.last_sync.added+')' : '') : '—';
+        var spLast = d.spotify.last_sync ? 'synced ' + new Date(d.spotify.last_sync.at).toLocaleDateString() + (d.spotify.last_sync.added ? ' (+'+d.spotify.last_sync.added+')' : '') : '-';
         html += '<tr style="border-top:1px solid rgba(0,0,0,.07)">';
         html += '<td style="padding:6px 8px 6px 0">Spotify playlist</td>';
-        html += cell(d.spotify.synced || '—');
-        html += cell('—');
-        html += cell(d.spotify.synced || '—');
-        html += cell('—');
+        html += cell(d.spotify.synced || '-');
+        html += cell('-');
+        html += cell(d.spotify.synced || '-');
+        html += cell('-');
         html += '<td style="padding:4px 8px;font-size:12px;opacity:.6">' + spLast + '</td>';
         html += '</tr>';
         // Apple row
-        var apLast = d.apple.last_sync ? 'synced ' + new Date(d.apple.last_sync.at).toLocaleDateString() : '—';
+        var apLast = d.apple.last_sync ? 'synced ' + new Date(d.apple.last_sync.at).toLocaleDateString() : '-';
         html += '<tr style="border-top:1px solid rgba(0,0,0,.07)">';
         html += '<td style="padding:6px 8px 6px 0">Apple Music</td>';
-        html += cell(d.apple.synced || '—');
-        html += cell('—');
-        html += cell('—');
-        html += cell(d.apple.synced || '—');
+        html += cell(d.apple.synced || '-');
+        html += cell('-');
+        html += cell('-');
+        html += cell(d.apple.synced || '-');
         html += '<td style="padding:4px 8px;font-size:12px;opacity:.6">' + apLast + '</td>';
         html += '</tr>';
         rows.innerHTML = html;
@@ -428,9 +471,9 @@
   document.getElementById('spotify-sync-btn').addEventListener('click', function() {
     var btn = document.getElementById('spotify-sync-btn');
     var st = document.getElementById('spotify-st');
-    btn.disabled = true; st.textContent = 'Queuing…';
+    btn.disabled = true; st.textContent = 'Queuing...';
     // Spotify sync runs automatically via sync-runner.js on the Mac/VPS.
-    // This button is informational — show current sync state.
+    // This button is informational - show current sync state.
     fetch('/api/radio/sync-status')
       .then(function(r){return r.json();})
       .then(function(d){
@@ -445,7 +488,7 @@
   document.getElementById('apple-sync-btn').addEventListener('click', async function() {
     var btn = document.getElementById('apple-sync-btn');
     var st = document.getElementById('apple-st');
-    btn.disabled = true; st.textContent = 'Connecting…';
+    btn.disabled = true; st.textContent = 'Connecting...';
     try {
       if (!window.MusicKit) { await new Promise(function(res,rej){var s=document.createElement('script');s.src='https://js-cdn.music.apple.com/musickit/v3/musickit.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);}); }
       var tr = await fetch('/api/radio/apple-token'); var { token: devToken } = await tr.json();
@@ -454,7 +497,7 @@
       var userToken = mk.musicUserToken;
       if (!userToken) throw new Error('Authorization failed');
       await fetch('/api/radio/store-apple-token', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:userToken})});
-      st.textContent = 'Syncing…';
+      st.textContent = 'Syncing...';
       var r = await fetch('/api/radio/apple-sync', {method:'POST'});
       var d = await r.json();
       st.textContent = d.ok ? '✓ '+d.added+' tracks synced to Apple Music' : '✗ '+(d.error||'failed');
@@ -478,7 +521,9 @@
       if (!t.spotify_url) flags.push('<span style="color:#c00;font-size:11px">no SP</span>');
       if (!t.apple_music_id) flags.push('<span style="color:#c00;font-size:11px">no AM</span>');
       var dim = t.play_count === 0 ? 'opacity:.5;' : '';
+      var thumb = t.thumbnail_url ? '<img src="'+t.thumbnail_url+'" style="width:36px;height:36px;border-radius:4px;object-fit:cover;flex-shrink:0" loading="lazy"/>' : '<div style="width:36px;height:36px;border-radius:4px;background:#eee;flex-shrink:0"></div>';
       return '<div data-id="'+t.id+'" style="'+dim+'display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:6px;cursor:pointer;border-bottom:1px solid rgba(0,0,0,.06)" class="track-row">'
+        + thumb
         + '<div style="flex:1;min-width:0">'
         + '<div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(t.title||'(no title)')+(t.play_count===0?'':' <span style="opacity:.35;font-size:11px">▶ '+t.play_count+'</span>')+'</div>'
         + '<div style="font-size:11px;opacity:.55">'+(t.artist||'')+'</div>'
@@ -523,7 +568,7 @@
   document.getElementById('edit-save').addEventListener('click', async function() {
     var btn = this;
     var st = document.getElementById('edit-st');
-    btn.disabled = true; st.textContent = 'Saving…';
+    btn.disabled = true; st.textContent = 'Saving...';
     var payload = {
       id: editingId,
       title:          document.getElementById('edit-title').value.trim() || null,
@@ -554,7 +599,7 @@
 
   document.getElementById('track-editor-load').addEventListener('click', function() {
     var btn = this;
-    btn.disabled = true; btn.textContent = 'Loading…';
+    btn.disabled = true; btn.textContent = 'Loading...';
     fetch('/api/radio/all-tracks')
       .then(function(r){ return r.json(); })
       .then(function(d) {
