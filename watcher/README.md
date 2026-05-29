@@ -1,106 +1,71 @@
-# whatsapp-watcher
+# watcher — WhatsApp Watcher
 
-Watch selected WhatsApp groups for Curtis (GUTS, Back From the Edge, Audio Anonymous, etc.), persist messages, and post a daily 8am PT digest to his WhatsApp self-chat.
+Node.js process that monitors a WhatsApp group and forwards shared music URLs to the radio API.
 
-Built on [whatsapp-web.js](https://wwebjs.dev/guide/) with `LocalAuth` so the QR scan only happens once.
+Runs on a Mac or any Linux VPS. Built on [whatsapp-web.js](https://wwebjs.dev).
 
-## Layout
-
-```
-whatsapp-watcher/
-├── lib/client.js        shared whatsapp-web.js client factory (LocalAuth)
-├── login.js             Phase 1 — scan QR, persist session
-├── list-groups.js       Phase 1 — write groups.json
-├── select-groups.js     Phase 2 — mark watch:true on GUTS/BFTE/Audio Anonymous
-├── watcher.js           Phase 2 — long-running listener
-├── digest.js            Phase 3 — daily summary → WhatsApp self-chat
-├── launchd/             Phase 4 — plists for launchd
-├── groups.json          (generated) all groups + watch flag
-├── messages/<gid>/      (generated) <YYYY-MM-DD>.jsonl + media/
-├── .wwebjs_auth/        (generated, gitignored) persistent session
-└── logs/                runtime logs
-```
-
-## First-run, in order
+## Setup
 
 ```bash
-cd /Users/doorliss/.openclaw/workspace/whatsapp-watcher
-
-# 1) Login — prints a QR; scan it from WhatsApp → Linked Devices.
-npm run login
-
-# 2) Enumerate every group you're in.
-npm run list
-
-# 3) Auto-mark GUTS / BFTE / Audio Anonymous groups as watched.
-#    (Edit groups.json by hand to add/remove later.)
-npm run select
-
-# 4) Smoke-test the watcher (Ctrl-C to stop).
-npm run watch
-
-# 5) Smoke-test a digest with a wider window, dry-run (no WhatsApp send).
-node digest.js --hours 168 --dry-run
+npm install
+cp .env.example .env
+# Edit .env: set RADIO_API_URL to your Cloudflare Pages URL
 ```
 
-## Daily operation (launchd)
+## First-time login
 
 ```bash
-# Install plists
-ln -sf /Users/doorliss/.openclaw/workspace/whatsapp-watcher/launchd/com.curtis.whatsapp-watcher.plist \
-       ~/Library/LaunchAgents/com.curtis.whatsapp-watcher.plist
-ln -sf /Users/doorliss/.openclaw/workspace/whatsapp-watcher/launchd/com.curtis.whatsapp-digest.plist \
-       ~/Library/LaunchAgents/com.curtis.whatsapp-digest.plist
-
-# Load
-launchctl load -w ~/Library/LaunchAgents/com.curtis.whatsapp-watcher.plist
-launchctl load -w ~/Library/LaunchAgents/com.curtis.whatsapp-digest.plist
-
-# Status / stop
-launchctl list | grep curtis.whatsapp
-launchctl unload ~/Library/LaunchAgents/com.curtis.whatsapp-watcher.plist
-launchctl unload ~/Library/LaunchAgents/com.curtis.whatsapp-digest.plist
-
-# Force-run a digest now (without waiting for 8am)
-launchctl start com.curtis.whatsapp-digest
+node login.js
 ```
 
-The watcher service is `KeepAlive: true` with a 30s `ThrottleInterval`, so a crash won't spin the CPU.
+Scan the QR code from WhatsApp → Linked Devices. Session is saved to `.wwebjs_auth/` (gitignored). You only do this once.
 
-## How the digest decides what matters
+## Configure groups
 
-For each watched group, `digest.js` reads the last 24h of `messages/<gid>/*.jsonl`, drops obvious noise (single emoji, "amen", "thanks"), and asks `anthropic/claude-haiku-4-5` (via `openclaw capability model run`) to surface, in this order:
-
-1. Direct mentions of Curtis
-2. Action items, commitments, meeting changes
-3. Resources shared (links, audio, PDFs)
-4. Significant personal shares (>200 chars)
-5. Newcomers / milestones / birthdays
-
-Anything else is dropped. If a group is genuinely quiet, no message is posted for it.
-
-The digest is delivered through OpenClaw:
-
-```
-openclaw agent --channel whatsapp --to +18057227915 --deliver --message "..."
+```bash
+node list-groups.js    # list all groups you're in
+node select-groups.js  # interactive picker to mark groups as watched
 ```
 
-## Audio Anonymous
+Or edit `groups.json` directly. Groups tagged `"music"` will have music URLs forwarded to the radio.
 
-When the watcher sees an `audio/*` attachment in any group tagged `audio-anonymous`, the file is:
+## Run
 
-1. Saved to `messages/<gid>/media/<filename>` (always)
-2. Mirrored to `../aa_speakers/inbox/<filename>` for review
+```bash
+node watcher.js
+```
 
-It is **not** auto-uploaded to S3 or auto-named. The existing manifest at `aa_speakers/manifest.json` expects curated metadata (episode, speaker, location, steps, event), which only Curtis can supply. Treat the inbox as a queue for the existing flow.
+On Mac, use the included launchd plist to run it as a background service:
 
-## Editing what's watched
+```bash
+# Edit the plist to fill in your path and RADIO_API_URL, then:
+cp launchd/com.whatsapp-playlist.watcher.plist ~/Library/LaunchAgents/
+launchctl load -w ~/Library/LaunchAgents/com.whatsapp-playlist.watcher.plist
+```
 
-`groups.json` is hand-editable. Toggle `watch: true|false` per group, or edit the regex set in `select-groups.js` and re-run `npm run select`.
+On Linux/VPS, use PM2:
 
-## Notes / limits
+```bash
+RADIO_API_URL=https://your-deployment.pages.dev pm2 start watcher.js --name whatsapp-playlist
+```
 
-- `whatsapp-web.js` drives the real WhatsApp Web — keep it gentle. One client per account, no aggressive polling.
-- The session cookie lives in `.wwebjs_auth/`. Don't commit that. Don't sync it. If you log out from your phone, you'll need to re-scan.
-- The watcher only writes messages from groups marked `watch: true`. DMs are ignored.
-- Curtis's own messages in watched groups are also captured (via `message_create` + `fromMe`) so context isn't lopsided.
+## How it works
+
+- Stores all messages from watched groups as JSONL in `messages/<group-id>/YYYY-MM-DD.jsonl`
+- For groups tagged `music`: extracts YouTube, Spotify, and Apple Music URLs and POSTs them to `/api/radio/import-urls`
+- Read-only — sending messages from this process is disabled at the code level
+
+## groups.json
+
+```json
+[
+  {
+    "id": "120363427268795660@g.us",
+    "name": "Music Fellowship",
+    "watch": true,
+    "tag": "music"
+  }
+]
+```
+
+Get group IDs by running `node list-groups.js` after login.

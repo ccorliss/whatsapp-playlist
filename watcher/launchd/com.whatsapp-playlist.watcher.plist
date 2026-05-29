@@ -3,23 +3,25 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.curtis.whatsapp-watcher</string>
+  <string>com.whatsapp-playlist.watcher</string>
 
   <key>ProgramArguments</key>
   <array>
     <string>/opt/homebrew/bin/node</string>
-    <string>/Users/doorliss/.openclaw/workspace/whatsapp-watcher/watcher.js</string>
+    <string>/path/to/whatsapp-playlist/watcher/watcher.js</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/doorliss/.openclaw/workspace/whatsapp-watcher</string>
+  <string>/path/to/whatsapp-playlist/watcher</string>
 
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     <key>HOME</key>
-    <string>/Users/doorliss</string>
+    <string>/Users/yourname</string>
+    <key>RADIO_API_URL</key>
+    <string>https://your-deployment.pages.dev</string>
   </dict>
 
   <key>RunAtLoad</key>
@@ -28,14 +30,13 @@
   <key>KeepAlive</key>
   <true/>
 
-  <!-- Throttle restarts so a crashloop won't spin a CPU. -->
   <key>ThrottleInterval</key>
   <integer>30</integer>
 
   <key>StandardOutPath</key>
-  <string>/Users/doorliss/.openclaw/workspace/whatsapp-watcher/logs/watcher.out.log</string>
+  <string>/path/to/whatsapp-playlist/watcher/logs/watcher.out.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/doorliss/.openclaw/workspace/whatsapp-watcher/logs/watcher.err.log</string>
+  <string>/path/to/whatsapp-playlist/watcher/logs/watcher.err.log</string>
 </dict>
 </plist>
