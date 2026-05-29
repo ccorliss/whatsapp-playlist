@@ -55,6 +55,51 @@ RADIO_API_URL=https://your-deployment.pages.dev pm2 start watcher.js --name what
 - For groups tagged `music`: extracts YouTube, Spotify, and Apple Music URLs and POSTs them to `/api/radio/import-urls`
 - Read-only — sending messages from this process is disabled at the code level
 
+---
+
+## Playlist sync
+
+The radio builds three linked playlists from the track catalog:
+
+| Platform | How | Where |
+|---|---|---|
+| **YouTube** | CF Workers API (direct) | Triggered from admin UI |
+| **Apple Music** | CF Workers + MusicKit (direct) | Triggered from admin UI |
+| **Spotify** | Playwright browser automation | Mac/VPS runner required |
+
+### Spotify (Playwright)
+
+Spotify requires browser automation because their API restricts playlist writes in development mode.
+
+**First time — authorize:**
+```bash
+npm run spotify-auth
+```
+This opens a headed browser. Log in, complete any 2FA. Session is saved to `.spotify-session.json`.
+
+**Sync new tracks:**
+```bash
+npm run spotify-sync          # headless
+npm run spotify-sync -- --dry-run  # preview only
+```
+
+Required env vars (in `.env`):
+```
+SPOTIFY_APPLE_ID=you@icloud.com
+SPOTIFY_APPLE_PW=your-apple-password
+SPOTIFY_PLAYLIST=Music Fellowship
+```
+
+### Sync runner (responds to admin UI)
+
+When someone clicks "Queue Spotify Sync" in the admin UI, it sets a flag in Cloudflare KV. The sync runner polls for that flag and runs the Spotify sync automatically:
+
+```bash
+npm run sync-runner
+```
+
+Run this as a background process alongside the watcher. It polls every 60 seconds and calls `sync-complete` when done so the admin UI reflects the result.
+
 ## groups.json
 
 ```json

@@ -1,8 +1,8 @@
 {
-  "name": "whatsapp-watcher",
+  "name": "whatsapp-playlist-watcher",
   "version": "1.0.0",
   "private": true,
-  "description": "Watch selected WhatsApp groups, store messages, generate daily digests, and auto-process Audio Anonymous speaker audio.",
+  "description": "WhatsApp watcher — captures messages and forwards music URLs to the radio API.",
   "type": "commonjs",
   "main": "watcher.js",
   "scripts": {
@@ -10,10 +10,14 @@
     "list": "node list-groups.js",
     "select": "node select-groups.js",
     "watch": "node watcher.js",
-    "digest": "node digest.js"
+    "sync-runner": "node sync-runner.js",
+    "spotify-auth": "node spotify-sync.js --auth",
+    "spotify-sync": "node spotify-sync.js"
   },
   "dependencies": {
     "whatsapp-web.js": "^1.26.0",
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+    "playwright": "^1.40.0",
+    "dotenv": "^16.0.0"
   }
 }

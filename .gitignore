@@ -19,7 +19,6 @@ app/wrangler.local.toml
 
 # Secrets / session state
 .env
-config/spotify-session.json
-config/spotify-added.json
-config/spotify-sync.json
-config/youtube-oauth.json
+.spotify-session.json
+.spotify-synced.json
+config/
