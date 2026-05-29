@@ -836,16 +836,91 @@ export async function onRequest({ request, env, params }) {
   // POST /api/radio/import-urls — batch URL import (client-parsed)
   if (path === '/import-urls' && method === 'POST') {
     const body = await request.json().catch(() => ({}));
-    const urls = body.urls || [];
-    if (!urls.length) return json({ ok: true, added: 0, skipped: 0, errors: 0 });
+    const items = body.items || body.urls || [];
+    if (!items.length) return json({ ok: true, added: 0, skipped: 0, errors: 0 });
     let added = 0, skipped = 0, errors = 0;
-    for (const item of urls) {
+    for (const item of items) {
       try {
-        const r = await ingestUrl(db, { url: item.url, author: item.author, timestampISO: item.timestampISO || null, body: '' }, env);
+        const r = await ingestUrl(db, { url: item.url, author: item.author, timestampISO: item.timestampISO || null, body: item.body || '' }, env);
         if (r.skipped) skipped++; else added++;
       } catch(_) { errors++; }
     }
     return json({ ok: true, added, skipped, errors });
+  }
+
+  // POST /api/radio/ingest-messages — store raw WhatsApp messages for conversation context
+  if (path === '/ingest-messages' && method === 'POST') {
+    const body = await request.json().catch(() => ({}));
+    const msgs = body.messages || [];
+    if (!msgs.length) return json({ ok: true, stored: 0, skipped: 0 });
+    let stored = 0, skipped = 0;
+    const stmt = db.prepare(
+      'INSERT OR IGNORE INTO chat_messages (message_id, author, body, timestamp_ms, reply_to_id, group_id) VALUES (?,?,?,?,?,?)'
+    );
+    for (const m of msgs) {
+      if (!m.message_id || !m.body) { skipped++; continue; }
+      try {
+        await stmt.bind(m.message_id, m.author || null, m.body, m.timestamp_ms || null, m.reply_to_id || null, m.group_id || null).run();
+        stored++;
+      } catch(_) { skipped++; }
+    }
+    // Link messages to tracks: if a message contains a music URL that resolved to a track,
+    // or if it's a reply to such a message, link it.
+    // We do a best-effort pass after inserting.
+    try {
+      // Find messages that contain URLs matching known tracks
+      const unlinked = await db.prepare(
+        "SELECT cm.id, cm.message_id, cm.body, cm.reply_to_id FROM chat_messages cm WHERE cm.track_id IS NULL LIMIT 200"
+      ).all();
+      for (const cm of (unlinked.results || [])) {
+        // Check if this message's body contains a URL that matches a track's original_url or youtube_id
+        const urlMatch = (cm.body || '').match(/https?:\/\/[^\s]+/g);
+        if (urlMatch) {
+          for (const u of urlMatch) {
+            const track = await db.prepare(
+              "SELECT id FROM tracks WHERE original_url=? OR (youtube_id IS NOT NULL AND ?  LIKE '%'||youtube_id||'%') LIMIT 1"
+            ).bind(u, u).first().catch(() => null);
+            if (track) {
+              await db.prepare('UPDATE chat_messages SET track_id=? WHERE id=?').bind(track.id, cm.id).run();
+              break;
+            }
+          }
+        }
+        // If it's a reply to a message already linked to a track, inherit that link
+        if (cm.reply_to_id) {
+          const parent = await db.prepare('SELECT track_id FROM chat_messages WHERE message_id=? AND track_id IS NOT NULL').bind(cm.reply_to_id).first().catch(() => null);
+          if (parent?.track_id) {
+            await db.prepare('UPDATE chat_messages SET track_id=? WHERE id=?').bind(parent.track_id, cm.id).run();
+          }
+        }
+      }
+    } catch(_) {}
+    return json({ ok: true, stored, skipped });
+  }
+
+  // GET /api/radio/track/:id/chat — conversation messages linked to a track
+  if (path.match(/^\/track\/\d+\/chat$/) && method === 'GET') {
+    const trackId = parseInt(path.split('/')[2]);
+    const limit = parseInt(url.searchParams.get('limit') || '50');
+    const rows = await db.prepare(
+      'SELECT author, body, timestamp_ms, reply_to_id FROM chat_messages WHERE track_id=? ORDER BY timestamp_ms ASC LIMIT ?'
+    ).bind(trackId, limit).all();
+    return json({ messages: rows.results || [] });
+  }
+
+  // GET /api/radio/chat — recent conversation timeline (all messages, newest first)
+  if (path === '/chat' && method === 'GET') {
+    const limit = parseInt(url.searchParams.get('limit') || '100');
+    const before = url.searchParams.get('before'); // timestamp_ms for pagination
+    const whereClause = before ? 'WHERE timestamp_ms < ?' : '';
+    const bindArgs = before ? [parseInt(before), limit] : [limit];
+    const rows = await db.prepare(
+      `SELECT cm.author, cm.body, cm.timestamp_ms, cm.reply_to_id, cm.track_id,
+              t.title AS track_title, t.artist AS track_artist, t.youtube_id, t.thumbnail_url
+       FROM chat_messages cm LEFT JOIN tracks t ON cm.track_id = t.id
+       ${whereClause} ORDER BY cm.timestamp_ms DESC LIMIT ?`
+    ).bind(...bindArgs).all();
+    return json({ messages: rows.results || [] });
   }
 
 

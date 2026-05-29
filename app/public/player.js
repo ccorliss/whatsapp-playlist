@@ -652,6 +652,7 @@ async function playTrack(t) {
   renderSourceTabs(t);
   syncMuteButton();
   syncMiniPlayer(t);
+  loadChatPanel(t);
   window.scrollTo({ top: 0, behavior: 'smooth' });
   clearFB();
   // Auto-pick best source: YouTube first, then Spotify
@@ -874,4 +875,47 @@ document.getElementById('mini-play')?.addEventListener('click', () => {
 document.getElementById('mini-skip')?.addEventListener('click', () => advance());
 document.getElementById('mini-info')?.addEventListener('click', () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// ── Chat panel ────────────────────────────────────────────────
+let chatVisible = true;
+async function loadChatPanel(track) {
+  const panel = document.getElementById('chat-panel');
+  const container = document.getElementById('chat-messages');
+  if (!panel || !container || !track) return;
+
+  container.innerHTML = '<div style="opacity:.4;font-size:12px;padding:4px 0">Loading...</div>';
+  panel.style.display = '';
+
+  try {
+    const r = await fetch(`/api/radio/track/${track.id}/chat?limit=30`);
+    const d = await r.json();
+    const msgs = d.messages || [];
+
+    if (!msgs.length) {
+      panel.style.display = 'none';
+      return;
+    }
+
+    container.innerHTML = msgs.map(m => {
+      const ts = m.timestamp_ms ? new Date(m.timestamp_ms).toLocaleDateString(undefined, {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+      const isReply = !!m.reply_to_id;
+      return `<div style="background:rgba(0,0,0,.04);border-radius:8px;padding:8px 10px;${isReply ? 'margin-left:16px;border-left:2px solid rgba(0,0,0,.12);' : ''}">
+        <div style="display:flex;gap:6px;align-items:baseline;margin-bottom:3px">
+          <span style="font-size:12px;font-weight:600">${esc(m.author || 'Unknown')}</span>
+          <span style="font-size:10px;opacity:.4">${ts}</span>
+        </div>
+        <div style="font-size:13px;line-height:1.4">${esc(m.body || '')}</div>
+      </div>`;
+    }).join('');
+  } catch(_) {
+    panel.style.display = 'none';
+  }
+}
+
+document.getElementById('chat-toggle')?.addEventListener('click', function() {
+  const container = document.getElementById('chat-messages');
+  chatVisible = !chatVisible;
+  container.style.display = chatVisible ? '' : 'none';
+  this.textContent = chatVisible ? 'hide' : 'show';
 });

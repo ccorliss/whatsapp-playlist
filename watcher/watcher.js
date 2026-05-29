@@ -21,6 +21,30 @@ const RADIO_API_URL = (process.env.RADIO_API_URL || 'https://whatsapp-playlist.p
 // URL patterns that indicate a music share
 const MUSIC_URL_RE = /https?:\/\/(?:(?:www\.)?youtube\.com\/(?:watch|shorts)|youtu\.be\/|open\.spotify\.com\/|music\.apple\.com\/)[^\s<>"']*/gi;
 
+// Forward a single message to the radio API for conversation storage
+async function forwardMessage(record) {
+  if (!record.body && !record.hasMedia) return; // skip empty
+  const payload = JSON.stringify({ messages: [{
+    message_id: record.id,
+    author: record.authorName || record.author || 'unknown',
+    body: record.body || '',
+    timestamp_ms: record.timestamp,
+    reply_to_id: record.replyTo || null,
+    group_id: record.groupId,
+  }]});
+  const endpoint = new URL('/api/radio/ingest-messages', RADIO_API_URL);
+  return new Promise(resolve => {
+    const req = https.request(
+      { hostname: endpoint.hostname, path: endpoint.pathname, method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } },
+      res => { res.resume(); res.on('end', resolve); }
+    );
+    req.on('error', () => resolve());
+    req.write(payload);
+    req.end();
+  });
+}
+
 // Forward music URLs from a message to the radio API
 async function forwardMusicUrls(record) {
   const urls = (record.body || '').match(MUSIC_URL_RE);
@@ -222,10 +246,11 @@ async function handleMessage(msg) {
 
     fs.appendFileSync(file, JSON.stringify(record) + '\n');
 
-    // Forward music URLs to radio if this is a music group
+    // For music groups: forward URLs + store message for conversation context
     const group = watched.get(gid);
     if (group && group.tag === 'music') {
       forwardMusicUrls(record).catch(e => log('forwardMusicUrls error', e.message));
+      forwardMessage(record).catch(e => log('forwardMessage error', e.message));
     }
 
     // Learn lid -> name mapping from this message.
