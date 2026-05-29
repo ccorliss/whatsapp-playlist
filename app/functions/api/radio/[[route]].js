@@ -795,6 +795,34 @@ export async function onRequest({ request, env, params }) {
   }
 
 
+  // POST /api/radio/track-update — edit a track's fields manually
+  if (path === '/track-update' && method === 'POST') {
+    const body = await request.json().catch(() => ({}));
+    const { id, title, artist, youtube_id, spotify_url, apple_music_id, enabled } = body;
+    if (!id) return json({ error: 'id required' }, 400);
+    const fields = [];
+    const vals = [];
+    if (title       !== undefined) { fields.push('title=?');         vals.push(title || null); }
+    if (artist      !== undefined) { fields.push('artist=?');        vals.push(artist || null); }
+    if (youtube_id  !== undefined) { fields.push('youtube_id=?');    vals.push(youtube_id || null); }
+    if (spotify_url !== undefined) { fields.push('spotify_url=?');   vals.push(spotify_url || null); }
+    if (apple_music_id !== undefined) { fields.push('apple_music_id=?'); vals.push(apple_music_id || null); }
+    if (enabled     !== undefined) { fields.push('enabled=?');       vals.push(enabled ? 1 : 0); }
+    if (!fields.length) return json({ error: 'nothing to update' }, 400);
+    vals.push(Number(id));
+    await db.prepare(`UPDATE tracks SET ${fields.join(',')} WHERE id=?`).bind(...vals).run();
+    const updated = await db.prepare('SELECT * FROM tracks WHERE id=?').bind(Number(id)).first();
+    return json({ ok: true, track: updated ? trackToJson(updated) : null });
+  }
+
+  // GET /api/radio/all-tracks — all tracks including disabled, for admin management
+  if (path === '/all-tracks' && method === 'GET') {
+    const rows = await db.prepare(
+      'SELECT * FROM tracks ORDER BY COALESCE(shared_at, added_at) DESC'
+    ).all();
+    return json({ tracks: (rows.results || []).map(trackToJson) });
+  }
+
   // POST /api/radio/wipe — clear all data (admin only)
   if (path === '/wipe' && method === 'POST') {
     await db.prepare('DELETE FROM reactions').run();

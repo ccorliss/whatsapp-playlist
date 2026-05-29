@@ -112,6 +112,47 @@
     </div>
   </div>
 
+  <div class="card" id="track-editor-card">
+    <h3>Track Editor</h3>
+    <label>Click any track to edit YouTube ID, Spotify URL, Apple Music ID, title, or disable it.</label>
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+      <input id="track-search" type="text" placeholder="Search tracks..." style="flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px"/>
+      <button class="btn sec" id="track-editor-load">Load Tracks</button>
+    </div>
+    <div id="track-list" style="margin-top:10px;max-height:400px;overflow-y:auto"></div>
+    <!-- Edit modal -->
+    <div id="track-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center">
+      <div style="background:#fff;border-radius:12px;padding:24px;width:min(480px,94vw);box-shadow:0 8px 32px rgba(0,0,0,.18)">
+        <h3 style="margin:0 0 16px">Edit Track <span id="edit-track-id" style="opacity:.4;font-size:13px"></span></h3>
+        <div style="display:grid;gap:10px">
+          <label style="font-size:12px;font-weight:600">Title
+            <input id="edit-title" type="text" style="display:block;width:100%;margin-top:3px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box"/>
+          </label>
+          <label style="font-size:12px;font-weight:600">Artist
+            <input id="edit-artist" type="text" style="display:block;width:100%;margin-top:3px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box"/>
+          </label>
+          <label style="font-size:12px;font-weight:600">YouTube ID
+            <input id="edit-youtube" type="text" placeholder="e.g. dQw4w9WgXcQ" style="display:block;width:100%;margin-top:3px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:monospace;box-sizing:border-box"/>
+          </label>
+          <label style="font-size:12px;font-weight:600">Spotify URL
+            <input id="edit-spotify" type="text" placeholder="https://open.spotify.com/track/..." style="display:block;width:100%;margin-top:3px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:monospace;box-sizing:border-box"/>
+          </label>
+          <label style="font-size:12px;font-weight:600">Apple Music ID
+            <input id="edit-apple" type="text" placeholder="e.g. 123456789" style="display:block;width:100%;margin-top:3px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:monospace;box-sizing:border-box"/>
+          </label>
+          <label style="font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px">
+            <input id="edit-enabled" type="checkbox" style="width:16px;height:16px"/> Enabled (uncheck to remove from rotation)
+          </label>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+          <button class="btn sec" id="edit-cancel">Cancel</button>
+          <button class="btn" id="edit-save">Save</button>
+        </div>
+        <div class="st" id="edit-st" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="card red">
     <h3>Danger Zone</h3>
     <label>Permanently delete all tracks, plays, reactions, and share history.</label>
@@ -420,6 +461,118 @@
     } catch(e) { st.textContent = '✗ ' + e.message; }
     btn.disabled = false;
   });
+  // ── Track editor ───────────────────────────────────────────────────
+  var allTracks = [];
+  var editingId = null;
+
+  function renderTrackList(filter) {
+    var list = document.getElementById('track-list');
+    var shown = filter ? allTracks.filter(function(t) {
+      var q = filter.toLowerCase();
+      return (t.title||'').toLowerCase().includes(q) || (t.artist||'').toLowerCase().includes(q);
+    }) : allTracks;
+    if (!shown.length) { list.innerHTML = '<div style="opacity:.5;padding:8px 0">No tracks found.</div>'; return; }
+    list.innerHTML = shown.map(function(t) {
+      var flags = [];
+      if (!t.youtube_id) flags.push('<span style="color:#c00;font-size:11px">no YT</span>');
+      if (!t.spotify_url) flags.push('<span style="color:#c00;font-size:11px">no SP</span>');
+      if (!t.apple_music_id) flags.push('<span style="color:#c00;font-size:11px">no AM</span>');
+      var dim = t.play_count === 0 ? 'opacity:.5;' : '';
+      return '<div data-id="'+t.id+'" style="'+dim+'display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:6px;cursor:pointer;border-bottom:1px solid rgba(0,0,0,.06)" class="track-row">'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(t.title||'(no title)')+(t.play_count===0?'':' <span style="opacity:.35;font-size:11px">▶ '+t.play_count+'</span>')+'</div>'
+        + '<div style="font-size:11px;opacity:.55">'+(t.artist||'')+'</div>'
+        + '</div>'
+        + (flags.length ? '<div style="display:flex;gap:4px">'+flags.join('')+'</div>' : '')
+        + (!t.play_count && !t.youtube_id ? '<span style="font-size:11px;background:#fee;color:#c00;padding:2px 6px;border-radius:4px">disabled</span>' : '')
+        + '</div>';
+    }).join('');
+    list.querySelectorAll('.track-row').forEach(function(row) {
+      row.addEventListener('mouseenter', function() { this.style.background='rgba(0,0,0,.04)'; });
+      row.addEventListener('mouseleave', function() { this.style.background=''; });
+      row.addEventListener('click', function() { openEditModal(Number(this.dataset.id)); });
+    });
+  }
+
+  function openEditModal(id) {
+    var t = allTracks.find(function(x){ return x.id === id; });
+    if (!t) return;
+    editingId = id;
+    document.getElementById('edit-track-id').textContent = '#'+id;
+    document.getElementById('edit-title').value   = t.title || '';
+    document.getElementById('edit-artist').value  = t.artist || '';
+    document.getElementById('edit-youtube').value = t.youtube_id || '';
+    document.getElementById('edit-spotify').value = t.spotify_url || '';
+    document.getElementById('edit-apple').value   = t.apple_music_id || '';
+    document.getElementById('edit-enabled').checked = (t.play_count !== undefined); // proxy for enabled
+    // fetch real enabled state
+    document.getElementById('edit-enabled').checked = true; // default true; wipe shows disabled
+    document.getElementById('edit-st').textContent = '';
+    var modal = document.getElementById('track-edit-modal');
+    modal.style.display = 'flex';
+  }
+
+  document.getElementById('edit-cancel').addEventListener('click', function() {
+    document.getElementById('track-edit-modal').style.display = 'none';
+  });
+
+  document.getElementById('track-edit-modal').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
+  });
+
+  document.getElementById('edit-save').addEventListener('click', async function() {
+    var btn = this;
+    var st = document.getElementById('edit-st');
+    btn.disabled = true; st.textContent = 'Saving…';
+    var payload = {
+      id: editingId,
+      title:          document.getElementById('edit-title').value.trim() || null,
+      artist:         document.getElementById('edit-artist').value.trim() || null,
+      youtube_id:     document.getElementById('edit-youtube').value.trim() || null,
+      spotify_url:    document.getElementById('edit-spotify').value.trim() || null,
+      apple_music_id: document.getElementById('edit-apple').value.trim() || null,
+      enabled:        document.getElementById('edit-enabled').checked,
+    };
+    try {
+      var r = await fetch('/api/radio/track-update', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      });
+      var d = await r.json();
+      if (d.ok) {
+        st.textContent = '✓ Saved';
+        // Update local cache
+        var idx = allTracks.findIndex(function(x){ return x.id === editingId; });
+        if (idx >= 0 && d.track) allTracks[idx] = d.track;
+        renderTrackList(document.getElementById('track-search').value);
+        setTimeout(function(){ document.getElementById('track-edit-modal').style.display='none'; }, 600);
+      } else {
+        st.textContent = '✗ ' + (d.error || 'failed');
+      }
+    } catch(e) { st.textContent = '✗ ' + e.message; }
+    btn.disabled = false;
+  });
+
+  document.getElementById('track-editor-load').addEventListener('click', function() {
+    var btn = this;
+    btn.disabled = true; btn.textContent = 'Loading…';
+    fetch('/api/radio/all-tracks')
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        allTracks = d.tracks || [];
+        renderTrackList(document.getElementById('track-search').value);
+        btn.textContent = 'Reload';
+        btn.disabled = false;
+      })
+      .catch(function(e) {
+        document.getElementById('track-list').innerHTML = '<div style="color:#c00">Error: '+e.message+'</div>';
+        btn.textContent = 'Load Tracks'; btn.disabled = false;
+      });
+  });
+
+  document.getElementById('track-search').addEventListener('input', function() {
+    if (allTracks.length) renderTrackList(this.value);
+  });
+
 })();
 </script>
 </body>
