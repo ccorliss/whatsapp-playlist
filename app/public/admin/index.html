@@ -513,16 +513,30 @@
       var tr = await fetch('/api/radio/apple-token'); var { token: devToken } = await tr.json();
       var mk = await MusicKit.configure({ developerToken: devToken, app: { name: 'Music Fellowship', build: '1.0' } });
       var userToken = (await mk.authorize()) || mk.musicUserToken; // silent if cached
-      if (!userToken) throw new Error('Authorization failed — make sure you are signed in to Apple Music in this browser');
+      if (!userToken) throw new Error('Authorization failed — sign in to Apple Music in this browser first');
       await fetch('/api/radio/store-apple-token', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:userToken})});
-      st.textContent = 'Syncing...';
-      var r = await fetch('/api/radio/apple-sync', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userToken})});
-      var d = await r.json();
-      var detail = d.errors?.length ? ' — ' + d.errors[0] : '';
-      if (d.ok && d.added > 0) st.textContent = '✓ ' + d.added + ' synced' + (d.failed ? ', ' + d.failed + ' skipped' : '') + ' to Apple Music';
-      else if (d.ok && d.failed > 0) st.textContent = '✗ All ' + d.failed + ' failed' + detail;
-      else if (d.ok) st.textContent = '✓ All synced to Apple Music';
-      else st.textContent = '✗ ' + (d.error || 'failed') + detail;
+
+      // Sync client-side via MusicKit — avoids server-side API restrictions
+      st.textContent = 'Loading tracks...';
+      var tracksR = await fetch('/api/radio/all');
+      var tracksD = await tracksR.json();
+      var appleIds = (tracksD.tracks||[]).filter(function(t){return t.apple_music_id;}).map(function(t){return t.apple_music_id;});
+      var playlistId = 'p.aJe04zxs8OkWq8'; // stored internal library ID
+
+      st.textContent = 'Syncing ' + appleIds.length + ' tracks via MusicKit...';
+      var added = 0, failed = 0;
+      for (var i = 0; i < appleIds.length; i += 25) {
+        var batch = appleIds.slice(i, i + 25);
+        try {
+          await mk.api.music(
+            '/v1/me/library/playlists/' + playlistId + '/tracks',
+            {},
+            { fetchOptions: { method: 'POST', body: JSON.stringify({ data: batch.map(function(id){ return { id: id, type: 'songs' }; }) }) } }
+          );
+          added += batch.length;
+        } catch(batchErr) { failed += batch.length; }
+      }
+      st.textContent = added > 0 ? '✓ ' + added + ' synced to Apple Music' + (failed ? ', ' + failed + ' skipped' : '') : '✗ All ' + failed + ' failed — check console';
     } catch(e) { st.textContent = '✗ ' + e.message; }
     btn.disabled = false;
   });
