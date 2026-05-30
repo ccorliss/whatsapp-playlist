@@ -1017,9 +1017,12 @@ function setChatMode(on) {
   }
 }
 
+let _renderingChat = false;
 function renderInlineChat() {
+  if (_renderingChat) return;
+  _renderingChat = true;
   document.querySelectorAll('.chat-inline-row').forEach(e => e.remove());
-  if (!chatMode) return;
+  if (!chatMode) { _renderingChat = false; return; }
   const tbody = document.querySelector('#catalog-table tbody');
   if (!tbody) return;
 
@@ -1027,10 +1030,14 @@ function renderInlineChat() {
   const rowMap = {};
   tbody.querySelectorAll('tr[data-id]').forEach(r => { rowMap[parseInt(r.dataset.id)] = r; });
 
-  // Group messages by track_id, sorted by timestamp asc
+  // Group messages by track_id, sorted by timestamp asc, deduped by name+body
   const byTrack = {};
+  const seen = new Set();
   _allChatMsgs.forEach(m => {
     if (!m.track_id || !firstName(m.author)) return;
+    const key = m.track_id + '|' + firstName(m.author) + '|' + (m.body||'').slice(0,50);
+    if (seen.has(key)) return;
+    seen.add(key);
     if (!byTrack[m.track_id]) byTrack[m.track_id] = [];
     byTrack[m.track_id].push(m);
   });
@@ -1057,7 +1064,8 @@ function renderInlineChat() {
     });
     row.after(frag);
   });
-  if (!insertedCount) console.log('chat: no messages matched track rows');
+  _renderingChat = false;
+  if (!insertedCount) console.log('chat: 0 messages injected, tracks with msgs:', Object.keys(byTrack).length);
 }
 
 document.getElementById('chat-toggle-btn')?.addEventListener('click', function() {
