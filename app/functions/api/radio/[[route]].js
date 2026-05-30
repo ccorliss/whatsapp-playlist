@@ -1147,7 +1147,7 @@ export async function onRequest({ request, env, params }) {
 
   // GET /api/radio/chat — recent conversation timeline (all messages, newest first)
   if (path === '/chat' && method === 'GET') {
-    const limit = parseInt(url.searchParams.get('limit') || '100');
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '100'), 500);
     const before = url.searchParams.get('before'); // timestamp_ms for pagination
     const whereClause = before ? 'WHERE timestamp_ms < ?' : '';
     const bindArgs = before ? [parseInt(before), limit] : [limit];

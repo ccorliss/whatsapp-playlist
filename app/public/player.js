@@ -652,7 +652,6 @@ async function playTrack(t) {
   renderSourceTabs(t);
   syncMuteButton();
   syncMiniPlayer(t);
-  loadChatPanel(t);
   window.scrollTo({ top: 0, behavior: 'smooth' });
   clearFB();
   // Auto-pick best source: YouTube first, then Spotify
@@ -939,7 +938,7 @@ async function loadChat(prepend) {
   const feed = document.getElementById('chat-feed');
   if (!feed) { _chatLoading = false; return; }
   try {
-    const url = '/api/radio/chat?limit=50' + (_chatBefore ? '&before=' + _chatBefore : '');
+    const url = '/api/radio/chat?limit=300' + (_chatBefore ? '&before=' + _chatBefore : '');
     const d = await fetch(url).then(r => r.json());
     const msgs = (d.messages || []).reverse(); // oldest first
     if (!msgs.length && !prepend) {
@@ -952,8 +951,8 @@ async function loadChat(prepend) {
       if (prepend) feed.insertBefore(el, feed.firstChild);
       else feed.appendChild(el);
     });
-    if (msgs.length === 50) {
-      _chatBefore = d.messages[d.messages.length - 1].timestamp_ms;
+    if (msgs.length === 300) {
+      _chatBefore = d.messages.length ? d.messages[d.messages.length - 1].timestamp_ms : null;
       const btn = document.getElementById('chat-load-more');
       if (btn) btn.style.display = '';
     } else {
@@ -982,9 +981,18 @@ function chatJumpToTrack(id) {
 loadChat();
 document.getElementById('chat-load-more')?.addEventListener('click', () => loadChat(true));
 
-// Hook track selection
-const _origPlayTrack = playTrack;
-playTrack = async function(t) {
-  await _origPlayTrack(t);
-  if (t?.id) setTimeout(() => chatJumpToTrack(t.id), 300);
-};
+// Hook track selection → jump chat
+(function() {
+  const orig = playTrack;
+  playTrack = async function(t) {
+    await orig(t);
+    if (t?.id) setTimeout(() => chatJumpToTrack(t.id), 300);
+  };
+})();
+
+// Scroll-up infinite load
+document.getElementById('chat-feed')?.addEventListener('scroll', function() {
+  if (this.scrollTop < 60 && !_chatLoading && _chatBefore) {
+    loadChat(true);
+  }
+});
