@@ -878,145 +878,113 @@ document.getElementById('mini-info')?.addEventListener('click', () => {
 });
 
 // ── Chat console ──────────────────────────────────────────────
-const USER_COLORS = ['uc0','uc1','uc2','uc3','uc4','uc5','uc6','uc7'];
-const userColorMap = {};
-let userColorIdx = 0;
-
-function userColor(name) {
-  if (!name) return 'uc0';
-  if (!userColorMap[name]) userColorMap[name] = USER_COLORS[userColorIdx++ % USER_COLORS.length];
-  return userColorMap[name];
+const _nameColors = ['cn0','cn1','cn2','cn3','cn4','cn5','cn6','cn7'];
+const _nameMap = {};
+let _nameIdx = 0;
+function nameColor(n) {
+  if (!_nameMap[n]) _nameMap[n] = _nameColors[_nameIdx++ % _nameColors.length];
+  return _nameMap[n];
 }
-
-function shortTime(ms) {
+function msgTime(ms) {
   if (!ms) return '';
   const d = new Date(ms);
-  return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12: false});
+  return d.toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:true});
+}
+function firstName(full) {
+  if (!full) return null;
+  if (/@lid@|@c\.us|\d{15,}/.test(full)) return null;
+  return full.replace(/^[~\s]+/,'').split(/\s+/)[0];
+}
+function stripNoise(body) {
+  return (body||'').replace(/<This message was (edited|deleted)>/gi,'').replace(/\u200e/g,'').trim();
+}
+function allUrls(body) {
+  return !body || body.trim().split(/\s+/).every(w => /^https?:\/\//.test(w));
 }
 
-function shortName(full) {
-  if (!full) return '?';
-  // Strip WhatsApp @lid internal IDs
-  if (/@lid@|@c\.us|\d{10,}/.test(full)) return '?';
-  return full.replace(/^[~\s]+/, '').split(/\s+/)[0] || '?';
-}
-
-function cleanBody(body) {
-  if (!body) return '';
-  return body
-    .replace(/<This message was edited>/gi, '')
-    .replace(/‎/g, '')  // LTR mark
-    .replace(/ /g, ' ') // narrow no-break space
-    .trim();
-}
-
-function isUrlOnly(body) {
-  if (!body) return true;
-  const cleaned = body.trim();
-  // URL only if every non-whitespace chunk is a URL
-  return cleaned.split(/\s+/).every(chunk => /^https?:\/\//.test(chunk));
-}
-
-function renderChatMsg(m, prepend = false) {
-  const feed = document.getElementById('chat-feed');
-  if (!feed) return;
+function buildBubble(m) {
+  const name = firstName(m.author);
+  if (!name) return null;
+  const body = stripNoise(m.body);
+  if (allUrls(body) && !m.track_title) return null;
 
   const el = document.createElement('div');
-  el.className = 'chat-msg' + (m.track_id ? ' is-track' : '');
+  el.className = 'cmsg';
   el.dataset.trackId = m.track_id || '';
   el.dataset.ts = m.timestamp_ms || '';
 
-  const colorClass = userColor(m.author);
-  const name = shortName(m.author);
-  const ts = shortTime(m.timestamp_ms);
+  const color = nameColor(m.author);
+  const ts = msgTime(m.timestamp_ms);
 
-  // Body: if URL-only and we have track info, show track instead
-  const rawBody = cleanBody(m.body);
   let bodyHtml;
   if (m.track_title) {
-    const trackHtml = `<span class="msg-track">🎵 ${esc(m.track_title)}${m.track_artist ? ' — ' + esc(m.track_artist) : ''}</span>`;
-    const commentText = rawBody && !isUrlOnly(rawBody) ? esc(rawBody) + ' ' : '';
-    bodyHtml = commentText + trackHtml;
-  } else if (!rawBody || isUrlOnly(rawBody)) {
-    return; // skip URL-only messages with no track info
+    const comment = body && !allUrls(body) ? `<div>${esc(body)}</div>` : '';
+    bodyHtml = comment + `<div class="ctrack">🎵 ${esc(m.track_title)}${m.track_artist?' — '+esc(m.track_artist):''}</div>`;
   } else {
-    bodyHtml = esc(rawBody);
+    bodyHtml = `<div>${esc(body)}</div>`;
   }
 
   el.innerHTML =
-    `<span class="msg-ts">${ts}</span>` +
-    `<span class="msg-author ${colorClass}">${esc(name)}:</span>` +
-    `<span class="msg-body">${bodyHtml}</span>`;
-
-  if (prepend) feed.insertBefore(el, feed.firstChild);
-  else feed.appendChild(el);
+    `<div class="cname ${color}">${esc(name)}</div>` +
+    `<div class="cbubble">${bodyHtml}</div>` +
+    `<div class="cts">${ts}</div>`;
   return el;
 }
 
-let chatBefore = null;
-let chatLoading = false;
-const CHAT_PAGE = 60;
+let _chatBefore = null, _chatLoading = false;
 
-async function loadChat(prepend = false) {
-  if (chatLoading) return;
-  chatLoading = true;
+async function loadChat(prepend) {
+  if (_chatLoading) return;
+  _chatLoading = true;
   const feed = document.getElementById('chat-feed');
-  if (!feed) { chatLoading = false; return; }
-
+  if (!feed) { _chatLoading = false; return; }
   try {
-    const url = `/api/radio/chat?limit=${CHAT_PAGE}` + (chatBefore ? `&before=${chatBefore}` : '');
-    const r = await fetch(url);
-    const d = await r.json();
-    const msgs = (d.messages || []).filter(m => (m.body || m.track_title) && m.author && !/@lid@|@c\.us/.test(m.author));
-
+    const url = '/api/radio/chat?limit=50' + (_chatBefore ? '&before=' + _chatBefore : '');
+    const d = await fetch(url).then(r => r.json());
+    const msgs = (d.messages || []).reverse(); // oldest first
     if (!msgs.length && !prepend) {
-      feed.innerHTML = '<div style="opacity:.25;font-size:11px;padding:8px 0">No messages yet.</div>';
-      chatLoading = false;
-      return;
+      feed.innerHTML = '<div style="font-size:11px;opacity:.25;padding:8px">No messages loaded yet.</div>';
     }
-
-    const btn = document.getElementById('chat-load-more');
-    if (msgs.length < CHAT_PAGE && btn) btn.style.display = 'none';
-    else if (btn) btn.style.display = '';
-
-    // API returns newest-first; render oldest-first
-    const scrollBottom = feed.scrollHeight - feed.scrollTop;
-    const ordered = [...msgs].reverse();
-    if (prepend) {
-      ordered.reverse().forEach(m => renderChatMsg(m, true));
-      if (msgs.length === CHAT_PAGE) chatBefore = msgs[msgs.length - 1].timestamp_ms;
-      feed.scrollTop = feed.scrollHeight - scrollBottom; // preserve position
+    const oldH = feed.scrollHeight;
+    msgs.forEach(m => {
+      const el = buildBubble(m);
+      if (!el) return;
+      if (prepend) feed.insertBefore(el, feed.firstChild);
+      else feed.appendChild(el);
+    });
+    if (msgs.length === 50) {
+      _chatBefore = d.messages[d.messages.length - 1].timestamp_ms;
+      const btn = document.getElementById('chat-load-more');
+      if (btn) btn.style.display = '';
     } else {
-      ordered.forEach(m => renderChatMsg(m, false));
-      if (msgs.length === CHAT_PAGE) chatBefore = msgs[msgs.length - 1].timestamp_ms;
-      feed.scrollTop = feed.scrollHeight; // start at bottom
+      const btn = document.getElementById('chat-load-more');
+      if (btn) btn.style.display = 'none';
     }
-  } catch(e) {
-    console.warn('Chat load failed:', e);
-  }
-  chatLoading = false;
+    if (!prepend) feed.scrollTop = feed.scrollHeight;
+    else feed.scrollTop = feed.scrollHeight - oldH;
+  } catch(e) { console.warn('chat', e); }
+  _chatLoading = false;
 }
 
-function jumpToTrack(trackId) {
-  if (!trackId) return;
+function chatJumpToTrack(id) {
+  if (!id) return;
   const feed = document.getElementById('chat-feed');
   if (!feed) return;
-  feed.querySelectorAll('.highlighted').forEach(el => el.classList.remove('highlighted'));
-  const match = feed.querySelector(`[data-track-id="${trackId}"]`);
-  if (match) {
-    match.classList.add('highlighted');
-    match.scrollIntoView({ block: 'center' });
-    setTimeout(() => match.classList.remove('highlighted'), 4000);
+  feed.querySelectorAll('.cmsg.highlighted').forEach(e => e.classList.remove('highlighted'));
+  const el = feed.querySelector(`.cmsg[data-track-id="${id}"]`);
+  if (el) {
+    el.classList.add('highlighted');
+    el.scrollIntoView({block:'center'});
+    setTimeout(() => el.classList.remove('highlighted'), 3500);
   }
 }
 
-// Load on page ready
 loadChat();
 document.getElementById('chat-load-more')?.addEventListener('click', () => loadChat(true));
 
-// Override track selection to jump chat
-const _origPlay = playTrack;
+// Hook track selection
+const _origPlayTrack = playTrack;
 playTrack = async function(t) {
-  await _origPlay(t);
-  if (t?.id) setTimeout(() => jumpToTrack(t.id), 200);
+  await _origPlayTrack(t);
+  if (t?.id) setTimeout(() => chatJumpToTrack(t.id), 300);
 };
