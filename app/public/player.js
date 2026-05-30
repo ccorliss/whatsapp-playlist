@@ -896,12 +896,25 @@ function shortTime(ms) {
 
 function shortName(full) {
   if (!full) return '?';
-  const parts = full.replace(/^[~\s]+/, '').split(/\s+/);
-  return parts[0] || full;
+  // Strip WhatsApp @lid internal IDs
+  if (/@lid@|@c\.us|\d{10,}/.test(full)) return '?';
+  return full.replace(/^[~\s]+/, '').split(/\s+/)[0] || '?';
+}
+
+function cleanBody(body) {
+  if (!body) return '';
+  return body
+    .replace(/<This message was edited>/gi, '')
+    .replace(/‎/g, '')  // LTR mark
+    .replace(/ /g, ' ') // narrow no-break space
+    .trim();
 }
 
 function isUrlOnly(body) {
-  return /^https?:\/\/\S+$/.test((body || '').trim());
+  if (!body) return true;
+  const cleaned = body.trim();
+  // URL only if every non-whitespace chunk is a URL
+  return cleaned.split(/\s+/).every(chunk => /^https?:\/\//.test(chunk));
 }
 
 function renderChatMsg(m, prepend = false) {
@@ -918,21 +931,21 @@ function renderChatMsg(m, prepend = false) {
   const ts = shortTime(m.timestamp_ms);
 
   // Body: if URL-only and we have track info, show track instead
+  const rawBody = cleanBody(m.body);
   let bodyHtml;
   if (m.track_title) {
-    bodyHtml = `<span class="msg-track">🎵 ${esc(m.track_title)}${m.track_artist ? ' — ' + esc(m.track_artist) : ''}</span>`;
-    if (m.body && !isUrlOnly(m.body)) {
-      bodyHtml = esc(m.body) + ' ' + bodyHtml;
-    }
-  } else if (isUrlOnly(m.body)) {
-    bodyHtml = `<span style="opacity:.3">🔗 link</span>`;
+    const trackHtml = `<span class="msg-track">🎵 ${esc(m.track_title)}${m.track_artist ? ' — ' + esc(m.track_artist) : ''}</span>`;
+    const commentText = rawBody && !isUrlOnly(rawBody) ? esc(rawBody) + ' ' : '';
+    bodyHtml = commentText + trackHtml;
+  } else if (!rawBody || isUrlOnly(rawBody)) {
+    return; // skip URL-only messages with no track info
   } else {
-    bodyHtml = esc(m.body || '');
+    bodyHtml = esc(rawBody);
   }
 
   el.innerHTML =
     `<span class="msg-ts">${ts}</span>` +
-    `<span class="msg-author ${colorClass}">${esc(name)}</span>` +
+    `<span class="msg-author ${colorClass}">${esc(name)}:</span>` +
     `<span class="msg-body">${bodyHtml}</span>`;
 
   if (prepend) feed.insertBefore(el, feed.firstChild);
@@ -954,7 +967,7 @@ async function loadChat(prepend = false) {
     const url = `/api/radio/chat?limit=${CHAT_PAGE}` + (chatBefore ? `&before=${chatBefore}` : '');
     const r = await fetch(url);
     const d = await r.json();
-    const msgs = (d.messages || []).filter(m => m.body || m.track_title);
+    const msgs = (d.messages || []).filter(m => (m.body || m.track_title) && m.author && !/@lid@|@c\.us/.test(m.author));
 
     if (!msgs.length && !prepend) {
       feed.innerHTML = '<div style="opacity:.25;font-size:11px;padding:8px 0">No messages yet.</div>';
