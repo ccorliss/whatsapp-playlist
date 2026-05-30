@@ -106,14 +106,16 @@
         <p class="mini-hint" id="player-hint" style="display:none"></p>
       </div>
 
-      <div id="chat-panel" style="display:none;margin-top:12px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <span style="font-size:12px;font-weight:600;opacity:.5;letter-spacing:.04em">CONVERSATION</span>
-          <button id="chat-toggle" style="margin-left:auto;font-size:11px;background:none;border:none;cursor:pointer;opacity:.5">hide</button>
-        </div>
-        <div id="chat-messages" style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
-      </div>
 
+    </section>
+
+    <!-- CHAT CONSOLE -->
+    <section class="chat-console" id="chat-console">
+      <div class="chat-console-header">
+        <span class="chat-console-title">💬 Music Fellowship</span>
+        <button id="chat-load-more" class="chat-load-earlier">↑ earlier</button>
+      </div>
+      <div id="chat-feed" class="chat-feed"></div>
     </section>
 
     <!-- PLAYLIST -->
@@ -152,15 +154,6 @@
         </thead>
         <tbody></tbody>
       </table>
-    </section>
-
-    <!-- CHAT -->
-    <section class="chat-section" id="chat-section">
-      <div class="catalog-header">
-        <h3>Chat <span id="chat-count" class="muted"></span></h3>
-      </div>
-      <div id="chat-feed" class="chat-feed"></div>
-      <button id="chat-load-more" class="btn-load-more" style="display:none">Load older messages</button>
     </section>
 
     <footer>

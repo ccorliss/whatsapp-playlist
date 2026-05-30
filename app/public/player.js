@@ -877,135 +877,133 @@ document.getElementById('mini-info')?.addEventListener('click', () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
-// ── Chat panel ────────────────────────────────────────────────
-let chatVisible = true;
-async function loadChatPanel(track) {
-  const panel = document.getElementById('chat-panel');
-  const container = document.getElementById('chat-messages');
-  if (!panel || !container || !track) return;
+// ── Chat console ──────────────────────────────────────────────
+const USER_COLORS = ['uc0','uc1','uc2','uc3','uc4','uc5','uc6','uc7'];
+const userColorMap = {};
+let userColorIdx = 0;
 
-  container.innerHTML = '<div style="opacity:.4;font-size:12px;padding:4px 0">Loading...</div>';
-  panel.style.display = '';
-
-  try {
-    const r = await fetch(`/api/radio/track/${track.id}/chat?limit=30`);
-    const d = await r.json();
-    const msgs = d.messages || [];
-
-    if (!msgs.length) {
-      panel.style.display = 'none';
-      return;
-    }
-
-    container.innerHTML = msgs.map(m => {
-      const ts = m.timestamp_ms ? new Date(m.timestamp_ms).toLocaleDateString(undefined, {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
-      const isReply = !!m.reply_to_id;
-      return `<div style="background:rgba(0,0,0,.04);border-radius:8px;padding:8px 10px;${isReply ? 'margin-left:16px;border-left:2px solid rgba(0,0,0,.12);' : ''}">
-        <div style="display:flex;gap:6px;align-items:baseline;margin-bottom:3px">
-          <span style="font-size:12px;font-weight:600">${esc(m.author || 'Unknown')}</span>
-          <span style="font-size:10px;opacity:.4">${ts}</span>
-        </div>
-        <div style="font-size:13px;line-height:1.4">${esc(m.body || '')}</div>
-      </div>`;
-    }).join('');
-  } catch(_) {
-    panel.style.display = 'none';
-  }
+function userColor(name) {
+  if (!name) return 'uc0';
+  if (!userColorMap[name]) userColorMap[name] = USER_COLORS[userColorIdx++ % USER_COLORS.length];
+  return userColorMap[name];
 }
 
-document.getElementById('chat-toggle')?.addEventListener('click', function() {
-  const container = document.getElementById('chat-messages');
-  chatVisible = !chatVisible;
-  container.style.display = chatVisible ? '' : 'none';
-  this.textContent = chatVisible ? 'hide' : 'show';
-});
+function shortTime(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12: false});
+}
 
-// ── Full chat timeline ────────────────────────────────────────
+function shortName(full) {
+  if (!full) return '?';
+  const parts = full.replace(/^[~\s]+/, '').split(/\s+/);
+  return parts[0] || full;
+}
+
+function isUrlOnly(body) {
+  return /^https?:\/\/\S+$/.test((body || '').trim());
+}
+
+function renderChatMsg(m, prepend = false) {
+  const feed = document.getElementById('chat-feed');
+  if (!feed) return;
+
+  const el = document.createElement('div');
+  el.className = 'chat-msg' + (m.track_id ? ' is-track' : '');
+  el.dataset.trackId = m.track_id || '';
+  el.dataset.ts = m.timestamp_ms || '';
+
+  const colorClass = userColor(m.author);
+  const name = shortName(m.author);
+  const ts = shortTime(m.timestamp_ms);
+
+  // Body: if URL-only and we have track info, show track instead
+  let bodyHtml;
+  if (m.track_title) {
+    bodyHtml = `<span class="msg-track">🎵 ${esc(m.track_title)}${m.track_artist ? ' — ' + esc(m.track_artist) : ''}</span>`;
+    if (m.body && !isUrlOnly(m.body)) {
+      bodyHtml = esc(m.body) + ' ' + bodyHtml;
+    }
+  } else if (isUrlOnly(m.body)) {
+    bodyHtml = `<span style="opacity:.3">🔗 link</span>`;
+  } else {
+    bodyHtml = esc(m.body || '');
+  }
+
+  el.innerHTML =
+    `<span class="msg-ts">${ts}</span>` +
+    `<span class="msg-author ${colorClass}">${esc(name)}</span>` +
+    `<span class="msg-body">${bodyHtml}</span>`;
+
+  if (prepend) feed.insertBefore(el, feed.firstChild);
+  else feed.appendChild(el);
+  return el;
+}
+
 let chatBefore = null;
 let chatLoading = false;
-const CHAT_PAGE = 40;
+const CHAT_PAGE = 60;
 
-async function loadChat(append = false) {
+async function loadChat(prepend = false) {
   if (chatLoading) return;
   chatLoading = true;
   const feed = document.getElementById('chat-feed');
-  const loadBtn = document.getElementById('chat-load-more');
-  if (!feed) return;
+  if (!feed) { chatLoading = false; return; }
 
-  const url = `/api/radio/chat?limit=${CHAT_PAGE}${chatBefore ? '&before=' + chatBefore : ''}`;
   try {
+    const url = `/api/radio/chat?limit=${CHAT_PAGE}` + (chatBefore ? `&before=${chatBefore}` : '');
     const r = await fetch(url);
     const d = await r.json();
-    const msgs = d.messages || [];
+    const msgs = (d.messages || []).filter(m => m.body || m.track_title);
 
-    if (!append) feed.innerHTML = '';
-
-    if (msgs.length === 0 && !append) {
-      feed.innerHTML = '<div style="opacity:.4;font-size:13px;padding:12px 0">No messages yet. Import a WhatsApp export from the admin page.</div>';
-      if (loadBtn) loadBtn.style.display = 'none';
+    if (!msgs.length && !prepend) {
+      feed.innerHTML = '<div style="opacity:.25;font-size:11px;padding:8px 0">No messages yet.</div>';
+      chatLoading = false;
       return;
     }
 
-    // Messages come newest-first from API, render oldest-first
-    const toRender = [...msgs].reverse();
-    toRender.forEach(m => {
-      const el = document.createElement('div');
-      const isMe = (m.author || '').includes('Curtis') || (m.author || '').toLowerCase().includes('curtis');
-      el.className = 'chat-msg ' + (isMe ? 'me' : 'other') + (m.track_id ? ' track-msg' : '');
-      el.dataset.msgTs = m.timestamp_ms || '';
-      el.dataset.trackId = m.track_id || '';
-      const ts = m.timestamp_ms ? new Date(m.timestamp_ms).toLocaleDateString(undefined, {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
-      const trackRef = m.track_title ? `<div class="track-ref">🎵 ${esc(m.track_title)}${m.track_artist ? ' — ' + esc(m.track_artist) : ''}</div>` : '';
-      el.innerHTML = (!isMe ? `<div class="author">${esc(m.author || 'Unknown')}</div>` : '') +
-        `<div class="body">${esc(m.body || '')}</div>` +
-        trackRef +
-        `<div class="ts">${ts}</div>`;
-      if (append) feed.insertBefore(el, feed.firstChild);
-      else feed.appendChild(el);
-    });
+    const btn = document.getElementById('chat-load-more');
+    if (msgs.length < CHAT_PAGE && btn) btn.style.display = 'none';
+    else if (btn) btn.style.display = '';
 
-    const count = document.getElementById('chat-count');
-    if (count) count.textContent = feed.querySelectorAll('.chat-msg').length + ' messages';
-
-    if (msgs.length === CHAT_PAGE) {
-      chatBefore = msgs[msgs.length - 1].timestamp_ms;
-      if (loadBtn) loadBtn.style.display = '';
+    // API returns newest-first; render oldest-first
+    const scrollBottom = feed.scrollHeight - feed.scrollTop;
+    const ordered = [...msgs].reverse();
+    if (prepend) {
+      ordered.reverse().forEach(m => renderChatMsg(m, true));
+      if (msgs.length === CHAT_PAGE) chatBefore = msgs[msgs.length - 1].timestamp_ms;
+      feed.scrollTop = feed.scrollHeight - scrollBottom; // preserve position
     } else {
-      if (loadBtn) loadBtn.style.display = 'none';
+      ordered.forEach(m => renderChatMsg(m, false));
+      if (msgs.length === CHAT_PAGE) chatBefore = msgs[msgs.length - 1].timestamp_ms;
+      feed.scrollTop = feed.scrollHeight; // start at bottom
     }
-
-    // Scroll to bottom on initial load
-    if (!append) feed.scrollTop = feed.scrollHeight;
-
   } catch(e) {
-    if (!append) feed.innerHTML = '<div style="color:#c00;font-size:13px">Could not load chat.</div>';
+    console.warn('Chat load failed:', e);
   }
   chatLoading = false;
 }
 
-function jumpToTrackInChat(trackId) {
+function jumpToTrack(trackId) {
+  if (!trackId) return;
   const feed = document.getElementById('chat-feed');
-  if (!feed || !trackId) return;
-  // Remove previous highlights
+  if (!feed) return;
   feed.querySelectorAll('.highlighted').forEach(el => el.classList.remove('highlighted'));
-  // Find and scroll to first message for this track
   const match = feed.querySelector(`[data-track-id="${trackId}"]`);
   if (match) {
     match.classList.add('highlighted');
-    match.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(() => match.classList.remove('highlighted'), 3000);
+    match.scrollIntoView({ block: 'center' });
+    setTimeout(() => match.classList.remove('highlighted'), 4000);
   }
 }
 
-// Load chat on page load
+// Load on page ready
 loadChat();
-
 document.getElementById('chat-load-more')?.addEventListener('click', () => loadChat(true));
 
-// Hook into track selection to jump to chat context
-const _origLoadChatPanel = loadChatPanel;
-loadChatPanel = function(track) {
-  // Update the small per-track panel (if still needed)
-  // Also jump to chat section
-  if (track?.id) jumpToTrackInChat(track.id);
+// Override track selection to jump chat
+const _origPlay = playTrack;
+playTrack = async function(t) {
+  await _origPlay(t);
+  if (t?.id) setTimeout(() => jumpToTrack(t.id), 200);
 };
