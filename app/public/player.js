@@ -917,8 +917,16 @@ function buildBubble(m) {
 
   let bodyHtml;
   if (m.track_title) {
-    const comment = body && !allUrls(body) ? `<div>${esc(body)}</div>` : '';
-    bodyHtml = comment + `<div class="ctrack">🎵 ${esc(m.track_title)}${m.track_artist?' — '+esc(m.track_artist):''}</div>`;
+    const comment = body && !allUrls(body) ? `<div style="margin-bottom:4px">${esc(body)}</div>` : '';
+    const thumb = m.thumbnail_url
+      ? `<img src="${esc(m.thumbnail_url)}" loading="lazy"/>`
+      : `<div style="width:32px;height:32px;border-radius:4px;background:rgba(255,255,255,.08);flex-shrink:0"></div>`;
+    bodyHtml = comment + `<div class="ctrack">` +
+      thumb +
+      `<div class="ctrack-info">` +
+      `<span class="ctrack-title">${esc(m.track_title)}</span>` +
+      (m.track_artist ? `<span class="ctrack-artist">${esc(m.track_artist)}</span>` : '') +
+      `</div></div>`;
   } else {
     bodyHtml = `<div>${esc(body)}</div>`;
   }

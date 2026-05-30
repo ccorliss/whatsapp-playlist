@@ -77,10 +77,44 @@
     white-space: pre-wrap;
   }
   .cmsg .cbubble .ctrack {
-    font-size: 11px !important;
-    color: rgba(255,255,255,.5) !important;
-    font-style: italic;
+    display: flex !important;
+    align-items: center;
+    gap: 7px;
     margin-top: 2px;
+    padding: 4px 6px;
+    background: rgba(255,255,255,.05);
+    border-radius: 6px;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .cmsg .cbubble .ctrack img {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 4px;
+    flex-shrink: 0;
+    object-fit: cover;
+  }
+  .cmsg .cbubble .ctrack-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .cmsg .cbubble .ctrack-title {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: rgba(255,255,255,.9) !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-style: normal !important;
+  }
+  .cmsg .cbubble .ctrack-artist {
+    font-size: 10px !important;
+    color: rgba(255,255,255,.45) !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-style: normal !important;
   }
   .cmsg .cts {
     font-size: 9px !important;
