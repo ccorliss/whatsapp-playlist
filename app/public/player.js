@@ -278,7 +278,7 @@ function shuffleArr(arr) {
 }
 
 function renderCatalog() {
-  if (chatMode && _allChatMsgs.length) setTimeout(renderInlineChat, 50);
+  if (chatMode && _allChatMsgs.length) setTimeout(renderInlineChat, 80);
   const tbody = document.querySelector('#catalog-table tbody');
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -1006,8 +1006,56 @@ function setChatMode(on) {
   const btn = document.getElementById('chat-toggle-btn');
   const panel = document.getElementById('chat-console');
   if (btn) btn.classList.toggle('active', on);
-  if (panel) panel.style.display = on ? '' : 'none';
-  if (on && !_allChatMsgs.length) loadChat();
+  if (panel) panel.style.display = 'none'; // panel stays hidden
+  if (on) {
+    if (!_allChatMsgs.length) loadChat(); // will call renderInlineChat after load
+    else renderInlineChat();
+  } else {
+    document.querySelectorAll('.chat-inline-row').forEach(e => e.remove());
+  }
+}
+
+function renderInlineChat() {
+  document.querySelectorAll('.chat-inline-row').forEach(e => e.remove());
+  if (!chatMode) return;
+  const tbody = document.querySelector('#catalog-table tbody');
+  if (!tbody) return;
+
+  // Build map of track id → DOM row
+  const rowMap = {};
+  tbody.querySelectorAll('tr[data-id]').forEach(r => { rowMap[parseInt(r.dataset.id)] = r; });
+
+  // Group messages by track_id, sorted by timestamp asc
+  const byTrack = {};
+  _allChatMsgs.forEach(m => {
+    if (!m.track_id || !firstName(m.author)) return;
+    if (!byTrack[m.track_id]) byTrack[m.track_id] = [];
+    byTrack[m.track_id].push(m);
+  });
+  Object.values(byTrack).forEach(msgs => msgs.sort((a,b) => (a.timestamp_ms||0)-(b.timestamp_ms||0)));
+
+  // Inject after each track row
+  let insertedCount = 0;
+  Object.keys(byTrack).forEach(tid => {
+    const row = rowMap[parseInt(tid)];
+    if (!row) return;
+    const frag = document.createDocumentFragment();
+    byTrack[tid].forEach(m => {
+      const rawBody = stripNoise(m.body);
+      const hasText = rawBody && !allUrls(rawBody);
+      const bodyText = hasText ? rawBody.slice(0,120) : null;
+      const el = document.createElement('tr');
+      el.className = 'chat-inline-row';
+      const name = firstName(m.author);
+      const color = nameColor(m.author);
+      const ts = m.timestamp_ms ? new Date(m.timestamp_ms).toLocaleDateString([],{month:'short',day:'numeric'}) : '';
+      el.innerHTML = `<td colspan="99" style="padding:0"><div style="display:flex;align-items:center;gap:6px;padding:3px 12px 3px 52px;font-size:11px;color:rgba(255,255,255,.5);border-left:2px solid rgba(255,255,255,.05)"><span style="font-weight:700;font-size:10px" class="${color}">${esc(name)}</span><span style="flex:1">${bodyText ? esc(bodyText) : '<i style="opacity:.4">shared this</i>'}</span><span style="opacity:.3;font-size:10px;flex-shrink:0">${ts}</span></div></td>`;
+      frag.appendChild(el);
+      insertedCount++;
+    });
+    row.after(frag);
+  });
+  if (!insertedCount) console.log('chat: no messages matched track rows');
 }
 
 function renderInlineChat() {
