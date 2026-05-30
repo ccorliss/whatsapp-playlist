@@ -520,7 +520,8 @@
       st.textContent = 'Loading tracks...';
       var tracksR = await fetch('/api/radio/all');
       var tracksD = await tracksR.json();
-      var appleIds = (tracksD.tracks||[]).filter(function(t){return t.apple_music_id;}).map(function(t){return t.apple_music_id;});
+      // Oldest first so newest tracks land at the top of the playlist (Apple Music appends)
+      var appleIds = (tracksD.tracks||[]).filter(function(t){return t.apple_music_id;}).map(function(t){return t.apple_music_id;}).reverse();
       var playlistId = window._applePlaylistId || 'pl.u-pMylDjbHKZabyK';
 
       st.textContent = 'Syncing ' + appleIds.length + ' tracks via MusicKit...';
