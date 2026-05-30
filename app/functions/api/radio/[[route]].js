@@ -1191,18 +1191,14 @@ export async function onRequest({ request, env, params }) {
 
       const amHeaders = { 'Authorization': `Bearer ${devToken}`, 'Music-User-Token': userToken, 'Content-Type': 'application/json' };
 
-      // Find or create Music Fellowship playlist
-      const PLAYLIST_NAME = 'Music Fellowship';
-      let playlistId = null;
-      let offset = 0;
-      while (!playlistId) {
-        const r = await fetch(`https://api.music.apple.com/v1/me/library/playlists?limit=25&offset=${offset}`, { headers: amHeaders });
-        if (!r.ok) { const e = await r.json(); return json({ ok: false, error: 'Apple Music API error: ' + (e.errors?.[0]?.detail || r.status) }); }
-        const data = await r.json();
-        const match = (data.data || []).find(p => p.attributes?.name === PLAYLIST_NAME);
-        if (match) { playlistId = match.id; break; }
-        if (!data.next || (data.data||[]).length < 25) break;
-        offset += 25;
+      // Use a KV-stored playlist ID (one we created and own) — never use a shared playlist
+      const PLAYLIST_NAME = 'Music Fellowship Radio';
+      let playlistId = await env.RADIO_SECRETS.get('apple_owned_playlist_id').catch(() => null);
+
+      // Verify the stored playlist still exists and is writable
+      if (playlistId) {
+        const vr = await fetch(`https://api.music.apple.com/v1/me/library/playlists/${playlistId}`, { headers: amHeaders });
+        if (!vr.ok) playlistId = null; // stale, recreate
       }
 
       // Get all Apple Music IDs from DB sorted newest first
@@ -1210,14 +1206,15 @@ export async function onRequest({ request, env, params }) {
       const catalogIds = (rows.results || []).map(r => r.apple_music_id);
 
       if (!playlistId) {
-        // Create playlist
+        // Create a new playlist we own
         const cr = await fetch('https://api.music.apple.com/v1/me/library/playlists', {
           method: 'POST', headers: amHeaders,
-          body: JSON.stringify({ attributes: { name: PLAYLIST_NAME, description: 'Songs shared in the Music Fellowship WhatsApp group.' }, relationships: { tracks: { data: catalogIds.slice(0,100).map(id => ({ id, type: 'songs' })) } } })
+          body: JSON.stringify({ attributes: { name: PLAYLIST_NAME, description: 'Songs shared in the Music Fellowship WhatsApp group.' } })
         });
         const cd = await cr.json();
         playlistId = cd.data?.[0]?.id;
-        if (!playlistId) return json({ ok: false, error: 'Failed to create playlist: ' + JSON.stringify(cd).slice(0,200) });
+        if (!playlistId) return json({ ok: false, error: 'Failed to create playlist: ' + JSON.stringify(cd).slice(0,300) });
+        await env.RADIO_SECRETS.put('apple_owned_playlist_id', playlistId);
       }
 
       // Add all tracks in batches of 25 — smaller batches to isolate failures
@@ -1233,13 +1230,13 @@ export async function onRequest({ request, env, params }) {
           added += batch.length;
         } else {
           const errBody = await ar.json().catch(() => ({}));
-          const detail = errBody.errors?.[0]?.detail || ar.status;
-          errors.push(`batch ${i}: ${detail}`);
+          const detail = errBody.errors?.[0]?.detail || errBody.errors?.[0]?.title || JSON.stringify(errBody).slice(0,100);
+          errors.push(`HTTP ${ar.status}: ${detail}`);
           failed += batch.length;
-          // If it's auth-related, abort early
           if (ar.status === 401 || ar.status === 403) {
-            return json({ ok: false, error: `Auth error (${ar.status}): ${detail} — try Sync Apple Music again to re-authorize`, added, failed });
+            return json({ ok: false, error: `Auth error (${ar.status}): ${detail} — try Sync Apple Music again`, added, failed });
           }
+          if (errors.length === 1) break; // stop after first failure to surface the error fast
         }
       }
 
