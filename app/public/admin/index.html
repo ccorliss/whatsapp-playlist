@@ -107,6 +107,7 @@
     <h3>Apple Music Playlist</h3>
     <label>Keeps the Apple Music playlist in sync. <a href="https://music.apple.com/us/playlist/music-fellowship/pl.u-4JomKEJTmZ27ym" target="_blank" style="color:var(--blue)">View playlist ↗</a></label>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button class="btn sec" id="apple-find-btn">Find Playlist ID</button>
       <button class="btn sec" id="apple-sync-btn">Sync Apple Music</button>
     </div>
     <div class="st" id="apple-st"></div>
@@ -485,6 +486,26 @@
   });
 
   // ── Apple Music sync ──────────────────────────────────────────────────────
+  document.getElementById('apple-find-btn').addEventListener('click', async function() {
+    var btn = this; var st = document.getElementById('apple-st');
+    btn.disabled = true; st.textContent = 'Authorizing...';
+    try {
+      if (!window.MusicKit) { await new Promise(function(res,rej){var s=document.createElement('script');s.src='https://js-cdn.music.apple.com/musickit/v3/musickit.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);}); }
+      var tr = await fetch('/api/radio/apple-token'); var { token: devToken } = await tr.json();
+      var mk = await MusicKit.configure({ developerToken: devToken, app: { name: 'Music Fellowship', build: '1.0' } });
+      try { await mk.unauthorize(); } catch(_) {}
+      await mk.authorize();
+      var userToken = mk.musicUserToken;
+      if (!userToken) throw new Error('Authorization failed');
+      st.textContent = 'Searching all playlists...';
+      var r = await fetch('/api/radio/apple-playlists', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userToken})});
+      var d = await r.json();
+      if (d.found) st.textContent = '✓ Found: ' + d.found.name + ' (ID: ' + d.found.id + ') — stored. Now tap Sync.';
+      else st.textContent = '✗ Music Fellowship not found in ' + d.total + ' playlists. Names: ' + (d.playlists||[]).map(function(p){return p.name;}).join(', ');
+    } catch(e) { st.textContent = '✗ ' + e.message; }
+    btn.disabled = false;
+  });
+
   document.getElementById('apple-sync-btn').addEventListener('click', async function() {
     var btn = document.getElementById('apple-sync-btn');
     var st = document.getElementById('apple-st');
@@ -499,19 +520,7 @@
       var userToken = mk.musicUserToken;
       if (!userToken) throw new Error('Authorization failed — make sure you are signed in to Apple Music in this browser');
       await fetch('/api/radio/store-apple-token', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:userToken})});
-      // First fetch the library playlist ID so we can store it
-      st.textContent = 'Looking up playlist...';
-      var plR = await fetch('/api/radio/apple-playlists', {method:'GET',headers:{'Content-Type':'application/json','Music-User-Token-Hint':userToken}});
-      // Pass token in body since GET doesn't have a body in some browsers
-      var plR2 = await fetch('/api/radio/apple-playlists', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userToken})});
-      var plD = await plR2.json();
-      var mfPlaylist = (plD.playlists||[]).find(function(p){ return p.name === 'Music Fellowship'; });
-      if (mfPlaylist) {
-        await fetch('/api/radio/kv-set', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:'apple_music_playlist_id',value:mfPlaylist.id})});
-        st.textContent = 'Found playlist ' + mfPlaylist.id + ', syncing...';
-      } else {
-        st.textContent = 'Playlist not found on first page, syncing anyway...';
-      }
+      st.textContent = 'Syncing...';
       var r = await fetch('/api/radio/apple-sync', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userToken})});
       var d = await r.json();
       if (d.ok) st.textContent = '✓ ' + d.added + ' synced' + (d.failed ? ', ' + d.failed + ' skipped' : '') + ' to Apple Music';

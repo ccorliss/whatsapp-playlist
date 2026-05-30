@@ -977,8 +977,8 @@ export async function onRequest({ request, env, params }) {
     return json({ ok: true, key, value });
   }
 
-  // POST /api/radio/apple-playlists — list user's library playlists (debug/setup)
-  if (path === '/apple-playlists' && method === 'GET') {
+  // POST /api/radio/apple-playlists — paginate all library playlists, find & store Music Fellowship ID
+  if (path === '/apple-playlists' && method === 'POST') {
     try {
       const reqBody = await request.json().catch(() => ({}));
       const userToken = reqBody.userToken || await env.RADIO_SECRETS.get('apple_music_user_token').catch(() => null);
@@ -994,10 +994,22 @@ export async function onRequest({ request, env, params }) {
       const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, cryptoKey, new TextEncoder().encode(sigInput));
       const devToken = `${sigInput}.${btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_')}`;
       const amHeaders = { 'Authorization': `Bearer ${devToken}`, 'Music-User-Token': userToken };
-      const r = await fetch('https://api.music.apple.com/v1/me/library/playlists?limit=25', { headers: amHeaders });
-      const data = await r.json();
-      const playlists = (data.data || []).map(p => ({ id: p.id, name: p.attributes?.name, trackCount: p.attributes?.trackCount }));
-      return json({ playlists, total: data.meta?.total, status: r.status });
+      // Paginate through ALL library playlists
+      const all = [];
+      let nextUrl = 'https://api.music.apple.com/v1/me/library/playlists?limit=25';
+      while (nextUrl && all.length < 500) {
+        const r = await fetch(nextUrl, { headers: amHeaders });
+        if (!r.ok) return json({ error: `API error ${r.status}`, fetched: all.length });
+        const data = await r.json();
+        for (const p of (data.data || [])) {
+          all.push({ id: p.id, name: p.attributes?.name, trackCount: p.attributes?.trackCount });
+        }
+        nextUrl = data.next ? `https://api.music.apple.com${data.next}` : null;
+      }
+      // Auto-store Music Fellowship ID
+      const mf = all.find(p => p.name === 'Music Fellowship');
+      if (mf) await env.RADIO_SECRETS.put('apple_music_playlist_id', mf.id);
+      return json({ playlists: all, found: mf || null, total: all.length });
     } catch(e) { return json({ error: e.message }, 500); }
   }
 
@@ -1264,27 +1276,19 @@ export async function onRequest({ request, env, params }) {
 
       const amHeaders = { 'Authorization': `Bearer ${devToken}`, 'Music-User-Token': userToken, 'Content-Type': 'application/json' };
 
-      // Use configured playlist ID, or fall back to KV/name search
+      // Use stored playlist ID from KV (set via admin or kv-set endpoint)
       const PLAYLIST_NAME = 'Music Fellowship';
       let playlistId = env.APPLE_MUSIC_PLAYLIST_ID
         || await env.RADIO_SECRETS.get('apple_music_playlist_id').catch(() => null)
         || null;
 
+      if (!playlistId) return json({ ok: false, error: 'No Apple Music playlist ID configured. Set apple_music_playlist_id in KV.' }, 400);
+
       // Get all Apple Music IDs from DB sorted newest first
       const rows = await db.prepare('SELECT apple_music_id FROM tracks WHERE enabled=1 AND apple_music_id IS NOT NULL ORDER BY COALESCE(shared_at, added_at) DESC').all();
       const catalogIds = (rows.results || []).map(r => r.apple_music_id);
 
-      if (!playlistId) {
-        // Create a new playlist we own
-        const cr = await fetch('https://api.music.apple.com/v1/me/library/playlists', {
-          method: 'POST', headers: amHeaders,
-          body: JSON.stringify({ attributes: { name: PLAYLIST_NAME, description: 'Songs shared in the Music Fellowship WhatsApp group.' } })
-        });
-        const cd = await cr.json();
-        playlistId = cd.data?.[0]?.id;
-        if (!playlistId) return json({ ok: false, error: 'Failed to create playlist: ' + JSON.stringify(cd).slice(0,300) });
-        await env.RADIO_SECRETS.put('apple_owned_playlist_id', playlistId);
-      }
+      // playlistId is required — set via KV
 
       // Add all tracks in batches of 25 — smaller batches to isolate failures
       let added = 0, failed = 0;
