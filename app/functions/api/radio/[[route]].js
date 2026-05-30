@@ -1090,7 +1090,8 @@ export async function onRequest({ request, env, params }) {
       const ytHeaders = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
 
       // Get all tracks from DB with youtube_id sorted by shared_at DESC (newest first)
-      const rows = await db.prepare('SELECT youtube_id, shared_at FROM tracks WHERE enabled=1 AND youtube_id IS NOT NULL ORDER BY COALESCE(shared_at, added_at) DESC').all();
+      // Include all tracks regardless of enabled — YouTube playlist is permanent, nothing gets removed
+      const rows = await db.prepare('SELECT youtube_id, shared_at FROM tracks WHERE youtube_id IS NOT NULL ORDER BY COALESCE(shared_at, added_at) DESC').all();
       const desiredIds = (rows.results || []).map(r => r.youtube_id);
 
       // Get current playlist items
@@ -1144,7 +1145,9 @@ export async function onRequest({ request, env, params }) {
   // POST /apple-sync — server-side Apple Music sync using stored tokens
   if (path === '/apple-sync' && method === 'POST') {
     try {
-      const userToken = await env.RADIO_SECRETS.get('apple_music_user_token');
+      // Accept token in body (avoids KV eventual-consistency race) or fall back to KV
+      const reqBody = await request.json().catch(() => ({}));
+      const userToken = reqBody.userToken || await env.RADIO_SECRETS.get('apple_music_user_token');
       if (!userToken) return json({ ok: false, error: 'No Apple Music user token. Click Sync Apple Music in admin first to authorize.' }, 401);
 
       const privKey = await env.RADIO_SECRETS.get('apple_musickit_private_key');
@@ -1262,7 +1265,7 @@ export async function onRequest({ request, env, params }) {
     // D1 counts
     const [total, hasYT, hasSpotify, hasApple, lastTrack] = await Promise.all([
       db.prepare("SELECT COUNT(*) AS n FROM tracks WHERE enabled=1").first(),
-      db.prepare("SELECT COUNT(*) AS n FROM tracks WHERE enabled=1 AND youtube_id IS NOT NULL").first(),
+      db.prepare("SELECT COUNT(*) AS n FROM tracks WHERE youtube_id IS NOT NULL").first(),
       db.prepare("SELECT COUNT(*) AS n FROM tracks WHERE enabled=1 AND spotify_url IS NOT NULL AND spotify_url LIKE '%spotify%'").first(),
       db.prepare("SELECT COUNT(*) AS n FROM tracks WHERE enabled=1 AND apple_music_id IS NOT NULL").first(),
       db.prepare("SELECT title, artist, shared_at FROM tracks WHERE enabled=1 ORDER BY COALESCE(shared_at, added_at) DESC LIMIT 1").first(),

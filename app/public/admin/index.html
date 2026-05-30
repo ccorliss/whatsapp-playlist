@@ -44,15 +44,15 @@
 <div id="panel">
   <h2>Music Fellowship Playlist Manager</h2>
   <div class="grid">
-    <div class="stat"><b id="n-tracks">—</b><s>Songs</s></div>
-    <div class="stat"><b id="n-sharers">—</b><s>Contributors</s></div>
-    <div class="stat"><b id="n-plays">—</b><s>Plays</s></div>
-    <div class="stat"><b id="n-react">—</b><s>Reactions</s></div>
+    <div class="stat"><b id="n-tracks">-</b><s>Songs</s></div>
+    <div class="stat"><b id="n-sharers">-</b><s>Contributors</s></div>
+    <div class="stat"><b id="n-plays">-</b><s>Plays</s></div>
+    <div class="stat"><b id="n-react">-</b><s>Reactions</s></div>
   </div>
 
   <div class="card">
     <h3>➕ Add a Song</h3>
-    <label>Paste any YouTube, Spotify, or Apple Music link and it’ll be added to the playlist automatically.</label>
+    <label>Paste any YouTube, Spotify, or Apple Music link and it'll be added to the playlist automatically.</label>
     <div style="display:flex;gap:8px;margin-top:10px">
       <input id="add-song-url" type="url" placeholder="https://open.spotify.com/track/... or youtube.com/..." style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px"/>
       <button class="btn" id="add-song-btn">Add</button>
@@ -378,7 +378,7 @@
     var st  = document.getElementById('add-song-st');
     var url = document.getElementById('add-song-url').value.trim();
     if (!url) { st.textContent = 'Paste a link first.'; return; }
-    btn.disabled = true; st.textContent = 'Adding…';
+    btn.disabled = true; st.textContent = 'Adding...';
     try {
       var r = await fetch('/api/radio/import-urls', {
         method: 'POST',
@@ -394,7 +394,7 @@
       } else if (d.skipped > 0) {
         st.textContent = 'Already in the playlist.';
       } else {
-        st.textContent = '✗ Couldn’t add that link — try a direct track URL (not a playlist or album).';
+        st.textContent = '✗ Couldn't add that link - try a direct track URL (not a playlist or album).';
       }
     } catch(e) { st.textContent = '✗ ' + e.message; }
     btn.disabled = false;
@@ -497,8 +497,9 @@
       var userToken = mk.musicUserToken;
       if (!userToken) throw new Error('Authorization failed');
       await fetch('/api/radio/store-apple-token', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:userToken})});
-      st.textContent = 'Syncing...';
-      var r = await fetch('/api/radio/apple-sync', {method:'POST'});
+      st.textContent = 'Syncing…';
+      // Pass token directly to avoid KV eventual-consistency race
+      var r = await fetch('/api/radio/apple-sync', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userToken})});
       var d = await r.json();
       st.textContent = d.ok ? '✓ '+d.added+' tracks synced to Apple Music' : '✗ '+(d.error||'failed');
     } catch(e) { st.textContent = '✗ ' + e.message; }
