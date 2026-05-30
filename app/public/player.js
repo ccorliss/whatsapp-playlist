@@ -308,12 +308,15 @@ function renderCatalog() {
     if (t.reactions?.heart)   rb.push('❤️' + t.reactions.heart);
     if (t.reactions?.fire)    rb.push('🔥' + t.reactions.fire);
     if (t.reactions?.hundred) rb.push('💯' + t.reactions.hundred);
+    if (t.reactions?.down)    rb.push('👎' + t.reactions.down);
+    if (t.reactions?.prayer)  rb.push('🙏' + t.reactions.prayer);
     const reactionHtml = rb.length
       ? `<span class="react-pills">${rb.join(' ')}</span>`
       : `<span class="react-mini">
           <button class="react-sm" data-tid="${t.id}" data-rtype="heart">❤️</button>
           <button class="react-sm" data-tid="${t.id}" data-rtype="fire">🔥</button>
           <button class="react-sm" data-tid="${t.id}" data-rtype="hundred">💯</button>
+          <button class="react-sm" data-tid="${t.id}" data-rtype="prayer">🙏</button>
         </span>`;
 
     // Per-track links
