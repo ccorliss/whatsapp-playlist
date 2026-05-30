@@ -553,10 +553,16 @@ function renderSourceTabs(track) {
   if (track.youtube_id)    sources.push({ id: 'youtube', label: '▶ YouTube' });
   if (getSpotifyId(track)) sources.push({ id: 'spotify', label: '🎵 Spotify' });
   if (!sources.length) return;
+  // "Player" label
+  const lbl = document.createElement('span');
+  lbl.className = 'links-label';
+  lbl.textContent = 'Player';
+  tabs.appendChild(lbl);
   for (const src of sources) {
     const btn = document.createElement('button');
     btn.className = 'source-tab' + (state.activeSource === src.id ? ' active' : '');
-    btn.textContent = src.label;
+    const icon = src.id === 'youtube' ? `<svg width="13" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>` : `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>`;
+    btn.innerHTML = icon + ' ' + (src.id === 'youtube' ? 'YouTube' : 'Spotify');
     btn.dataset.src = src.id;
     btn.addEventListener('click', () => loadSource(state.current, src.id));
     tabs.appendChild(btn);
@@ -1012,14 +1018,14 @@ function setChatMode(on) {
       if (!inlineCount && panel) panel.style.display = '';
     }
   } else {
-    document.querySelectorAll('.chat-inline-msg').forEach(e => e.remove());
+    document.querySelectorAll('.chat-inline-row').forEach(e => e.remove());
     if (panel) panel.style.display = 'none';
   }
 }
 
 function renderInlineChat() {
   // Remove existing inline rows
-  document.querySelectorAll('.chat-inline-msg').forEach(e => e.remove());
+  document.querySelectorAll('.chat-inline-row').forEach(e => e.remove());
   if (!chatMode || !_allChatMsgs.length) return;
 
   // Get track rows sorted by their shared_at data attribute
@@ -1041,27 +1047,21 @@ function renderInlineChat() {
     byTrack[m.track_id].push(m);
   });
 
-  // Inject messages after each track row
+  // Inject messages after each track row — show all linked messages
   Object.keys(byTrack).forEach(tid => {
     const row = rowMap[parseInt(tid)];
     if (!row) return;
-    const msgs = byTrack[tid].filter(m => {
-      const b = stripNoise(m.body);
-      return b && !allUrls(b);
-    });
+    const msgs = byTrack[tid].filter(m => firstName(m.author)); // skip @lid IDs
     msgs.forEach(m => {
       const el = document.createElement('tr');
-      el.className = 'chat-inline-msg';
-      const name = firstName(m.author) || '?';
+      el.className = 'chat-inline-row';
+      const name = firstName(m.author);
       const color = nameColor(m.author);
-      const b = stripNoise(m.body).slice(0, 120);
+      const rawBody = stripNoise(m.body);
+      const hasText = rawBody && !allUrls(rawBody);
+      const bodyPart = hasText ? esc(rawBody.slice(0, 100)) : '<span style="opacity:.35">shared this</span>';
       const ts = m.timestamp_ms ? new Date(m.timestamp_ms).toLocaleDateString([], {month:'short',day:'numeric'}) : '';
-      el.innerHTML = `<td colspan="99" style="padding:0">
-        <div class="chat-inline-msg">
-          <span class="ci-name ${color}">${esc(name)}</span>
-          <span class="ci-body">${esc(b)}</span>
-          <span class="ci-ts">${ts}</span>
-        </div></td>`;
+      el.innerHTML = `<td colspan="99" style="padding:0"><div style="display:flex;align-items:baseline;gap:6px;padding:3px 12px;font-size:11px;opacity:.6;border-left:2px solid rgba(255,255,255,.06)"><span style="font-weight:700;flex-shrink:0" class="${color}">${esc(name)}</span><span style="flex:1;word-break:break-word">${bodyPart}</span><span style="opacity:.4;font-size:10px;flex-shrink:0">${ts}</span></div></td>`;
       row.after(el);
     });
   });
