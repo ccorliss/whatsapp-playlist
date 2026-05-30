@@ -187,12 +187,7 @@ a:hover { color: var(--amber); }
 .search-input::placeholder { color: var(--ink-faint); }
 
 /* ── Track table — Apple Music style ── */
-.catalog table { width: 100%; border-collapse: collapse; font-size: 0.85rem; table-layout: fixed; }
-.catalog th.track-header { width: auto; }
-.catalog th.links-header { width: 80px; }
-.catalog th.sharer-header { width: 90px; }
-.catalog th.date-header { width: 72px; }
-.catalog th.react-header { width: 96px; }
+.catalog table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .catalog th {
   padding: 6px 8px; border-bottom: 1px solid var(--line);
   text-align: left; color: var(--ink-faint); font-weight: 500;
@@ -223,13 +218,10 @@ a:hover { color: var(--amber); }
 .track-title-main { font-size: 0.875rem; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .track-artist-sub { font-size: 0.75rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .commentary-pill { font-style: italic; color: var(--ink-faint); font-size: 0.7rem; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* row-links moved to dedicated column */
+
 .row-link { display: inline-block; padding: 1px 6px; border-radius: 99px; font-size: 0.67rem; background: var(--bg); color: var(--ink-faint); border: 1px solid var(--line); text-decoration: none; white-space: nowrap; transition: all 0.1s; }
 .row-link:hover { background: var(--blue); color: #fff; border-color: var(--blue); text-decoration: none; }
 
-.links-col { white-space: nowrap; padding: 0 6px !important; }
-.links-col a { display: inline-flex; align-items: center; opacity: .5; margin: 0 2px; transition: opacity .1s; }
-.links-col a:hover { opacity: 1; }
 .sharer-col { font-size: 0.78rem; color: var(--ink-soft); padding: 0 8px !important; white-space: nowrap; }
 .author-cell:hover { color: var(--amber); cursor: pointer; }
 .author-active { color: var(--amber); font-weight: 700; }
@@ -520,3 +512,10 @@ footer { margin-top: 36px; padding-top: 16px; border-top: 1px solid var(--line-s
 .ptab:hover { border-color: var(--blue-soft); color: var(--ink); }
 .ptab svg { opacity: 0.7; }
 .ptab:hover svg { opacity: 1; }
+
+.track-artist-row { display: flex; align-items: center; gap: 6px; }
+.row-links { display: inline-flex; align-items: center; gap: 3px; opacity: 0; transition: opacity .15s; pointer-events: none; }
+tr:hover .row-links { opacity: .65; pointer-events: auto; }
+.row-link { display: inline-flex; align-items: center; color: inherit; transition: opacity .1s; }
+.row-link:hover { opacity: 1 !important; }
+.row-link svg { display: block; }
