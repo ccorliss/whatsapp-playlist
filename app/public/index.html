@@ -181,7 +181,6 @@
       YouTube
      ↗
     </a>
-    <a class="btn-add" href="https://chat.whatsapp.com/J11yWqoXWqL7ZCWBpEoixA" target="_blank" rel="noopener" title="Add a song to Music Fellowship">+ Add</a>
   </nav>
 
   <!-- Embed panels -->
@@ -221,6 +220,7 @@
         <div class="np-controls">
           <button id="btn-play" class="primary">▶ Play</button>
           <button id="btn-skip" class="secondary">⏭</button>
+          <a class="btn-share" href="https://chat.whatsapp.com/J11yWqoXWqL7ZCWBpEoixA" target="_blank" rel="noopener">+ Add</a>
         </div>
       </div>
 
@@ -291,10 +291,11 @@
         <thead>
           <tr>
             <th class="drag-col"></th>
-            <th class="sortable" data-sort="title">Track <span class="sort-icon"></span></th>
-            <th class="sortable sharer-col" data-sort="author">Shared by <span class="sort-icon"></span></th>
-            <th class="sortable" data-sort="date">Date <span class="sort-icon">▼</span></th>
-            <th class="react-col">Reactions</th>
+            <th class="sortable track-header" data-sort="title">Track <span class="sort-icon"></span></th>
+            <th class="links-header"></th>
+            <th class="sortable sharer-col sharer-header" data-sort="author">Shared by <span class="sort-icon"></span></th>
+            <th class="sortable date-header" data-sort="date">Date <span class="sort-icon">▼</span></th>
+            <th class="react-col react-header">Reactions</th>
           </tr>
         </thead>
         <tbody></tbody>

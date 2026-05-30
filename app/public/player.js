@@ -320,10 +320,10 @@ function renderCatalog() {
 
     // Per-track links
     const rowLinks = [];
-    if (t.song_link_url) rowLinks.push(`<a class="row-link" href="${esc(t.song_link_url)}" target="_blank" rel="noopener">🔗</a>`);
-    if (t.youtube_id)   rowLinks.push(`<a class="row-link" href="https://www.youtube.com/watch?v=${esc(t.youtube_id)}" target="_blank" rel="noopener">▶ YT</a>`);
-    if (t.spotify_url)  rowLinks.push(`<a class="row-link" href="${esc(t.spotify_url)}" target="_blank" rel="noopener">🎵</a>`);
-    if (t.apple_url)    rowLinks.push(`<a class="row-link" href="${esc(t.apple_url)}" target="_blank" rel="noopener">🍎</a>`);
+    if (t.song_link_url) rowLinks.push(`<a class="row-link" href="${esc(t.song_link_url)}" target="_blank" rel="noopener" title="song.link"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity:.5"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></a>`);
+    if (t.youtube_id)   rowLinks.push(`<a class="row-link" href="https://www.youtube.com/watch?v=${esc(t.youtube_id)}" target="_blank" rel="noopener" title="YouTube"><svg width="14" height="14" viewBox="0 0 24 24" fill="#FF0000"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></a>`);
+    if (t.spotify_url)  rowLinks.push(`<a class="row-link" href="${esc(t.spotify_url)}" target="_blank" rel="noopener" title="Spotify"><svg width="14" height="14" viewBox="0 0 24 24" fill="#1DB954"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg></a>`);
+    if (t.apple_url || t.apple_music_id) rowLinks.push(`<a class="row-link" href="${esc(t.apple_url || ('https://music.apple.com/us/song/' + t.apple_music_id))}" target="_blank" rel="noopener" title="Apple Music"><svg width="14" height="14" viewBox="0 0 24 24" fill="#FC3C44"><path d="M23.994 6.124a9.23 9.23 0 00-.24-2.19c-.317-1.31-1.064-2.31-2.19-3.09a5.33 5.33 0 00-1.72-.77c-.63-.15-1.26-.19-1.9-.19H6.026c-.55 0-1.1.04-1.64.13C3.14.19 2.19.78 1.38 1.67.65 2.49.17 3.49.04 4.61A11.17 11.17 0 000 6.01v11.96c0 .51.04 1.01.12 1.51.2 1.24.78 2.26 1.69 3.08.82.74 1.81 1.18 2.91 1.35.55.09 1.1.11 1.66.11h11.29c.6 0 1.2-.04 1.79-.15 1.07-.19 2.01-.65 2.79-1.38.87-.81 1.42-1.82 1.6-3 .1-.59.14-1.19.14-1.79V6.12zm-6.97 9.26c0 .14-.01.28-.04.42a1.8 1.8 0 01-.87 1.25c-.27.16-.57.24-.88.24-.66 0-1.28-.37-1.64-.93l-.02-.03-3.43-5.93v6.57c0 .12-.01.25-.03.37a1.79 1.79 0 01-1.77 1.48 1.79 1.79 0 01-1.78-1.78V8.62c0-.12.01-.25.03-.37A1.79 1.79 0 018.38 6.77c.66 0 1.28.37 1.64.93l.02.03 3.43 5.93V7.09c0-.12.01-.25.03-.37A1.79 1.79 0 0115.27 5.3c.99 0 1.79.8 1.79 1.79v8.27z"/></svg></a>`);
 
     const thumbHtml = t.thumbnail_url
       ? `<img class="track-thumb" src="${esc(t.thumbnail_url)}" alt="" loading="lazy" />`
@@ -341,10 +341,10 @@ function renderCatalog() {
             <div class="track-title-main">${esc(t.title || '(untitled)')}${t.emojis ? ' ' + t.emojis : ''}</div>
             <div class="track-artist-sub">${esc(t.artist || '')}</div>
             ${t.commentary && state.current && t.id === state.current.id ? `<div class="commentary-pill">"${esc(t.commentary.slice(0,80))}${t.commentary.length>80?'\u2026':''}"</div>` : ''}
-            ${rowLinks.length ? `<div class="row-links">${rowLinks.join('')}</div>` : ''}
           </div>
         </div>
       </td>
+      <td class="links-col">${rowLinks.join('')}</td>
       <td class="sharer-col author-cell" data-author="${esc(t.shared_by || '')}" title="Filter by ${esc(abbrevName(t.shared_by) || 'unknown')}" style="cursor:pointer">${esc(abbrevName(t.shared_by) || '-')}${authorFilter === t.shared_by ? ' <span class="author-active">×</span>' : ''}</td>
       <td class="date-col">${fmtDate(t.shared_at || t.added_at)}</td>
       <td class="react-col">${reactionHtml}</td>
@@ -1007,20 +1007,8 @@ function setChatMode(on) {
   const btn = document.getElementById('chat-toggle-btn');
   const panel = document.getElementById('chat-console');
   if (btn) btn.classList.toggle('active', on);
-  if (panel) panel.style.display = 'none'; // panel always hidden; inline only
-  if (on) {
-    if (!_allChatMsgs.length) {
-      loadChat();
-    } else {
-      renderInlineChat();
-      // Also show the panel as fallback if inline renders nothing visible
-      const inlineCount = document.querySelectorAll('.chat-inline-msg').length;
-      if (!inlineCount && panel) panel.style.display = '';
-    }
-  } else {
-    document.querySelectorAll('.chat-inline-row').forEach(e => e.remove());
-    if (panel) panel.style.display = 'none';
-  }
+  if (panel) panel.style.display = on ? '' : 'none';
+  if (on && !_allChatMsgs.length) loadChat();
 }
 
 function renderInlineChat() {
