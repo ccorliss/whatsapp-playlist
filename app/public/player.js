@@ -1003,11 +1003,17 @@ function setChatMode(on) {
   if (btn) btn.classList.toggle('active', on);
   if (panel) panel.style.display = 'none'; // panel always hidden; inline only
   if (on) {
-    if (!_allChatMsgs.length) loadChat();
-    else renderInlineChat();
+    if (!_allChatMsgs.length) {
+      loadChat();
+    } else {
+      renderInlineChat();
+      // Also show the panel as fallback if inline renders nothing visible
+      const inlineCount = document.querySelectorAll('.chat-inline-msg').length;
+      if (!inlineCount && panel) panel.style.display = '';
+    }
   } else {
-    // Remove all inline chat rows
     document.querySelectorAll('.chat-inline-msg').forEach(e => e.remove());
+    if (panel) panel.style.display = 'none';
   }
 }
 
