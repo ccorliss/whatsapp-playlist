@@ -499,8 +499,19 @@
       var userToken = mk.musicUserToken;
       if (!userToken) throw new Error('Authorization failed — make sure you are signed in to Apple Music in this browser');
       await fetch('/api/radio/store-apple-token', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:userToken})});
-      st.textContent = 'Syncing...';
-      // Pass token directly to avoid KV eventual-consistency race
+      // First fetch the library playlist ID so we can store it
+      st.textContent = 'Looking up playlist...';
+      var plR = await fetch('/api/radio/apple-playlists', {method:'GET',headers:{'Content-Type':'application/json','Music-User-Token-Hint':userToken}});
+      // Pass token in body since GET doesn't have a body in some browsers
+      var plR2 = await fetch('/api/radio/apple-playlists', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userToken})});
+      var plD = await plR2.json();
+      var mfPlaylist = (plD.playlists||[]).find(function(p){ return p.name === 'Music Fellowship'; });
+      if (mfPlaylist) {
+        await fetch('/api/radio/kv-set', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:'apple_music_playlist_id',value:mfPlaylist.id})});
+        st.textContent = 'Found playlist ' + mfPlaylist.id + ', syncing...';
+      } else {
+        st.textContent = 'Playlist not found on first page, syncing anyway...';
+      }
       var r = await fetch('/api/radio/apple-sync', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userToken})});
       var d = await r.json();
       if (d.ok) st.textContent = '✓ ' + d.added + ' synced' + (d.failed ? ', ' + d.failed + ' skipped' : '') + ' to Apple Music';

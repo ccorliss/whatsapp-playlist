@@ -574,17 +574,58 @@ export async function onRequest({ request, env, params }) {
     const text = await request.text();
     if (!text || text.length < 10) return json({ error: 'Empty export text' }, 400);
     const messages = parseExport(text);
-    let added = 0, skipped = 0;
+    let added = 0, skipped = 0, chatStored = 0;
+    const chatStmt = db.prepare(
+      'INSERT OR IGNORE INTO chat_messages (message_id, author, body, timestamp_ms, reply_to_id, group_id) VALUES (?,?,?,?,?,?)'
+    );
     for (const msg of messages) {
+      // Store every message in chat history
+      if (msg.body && msg.author) {
+        const msgId = `EXPORT::${msg.author}::${msg.timestampISO}::${(msg.body||'').slice(0,40)}`;
+        const tsMs = msg.timestampISO ? new Date(msg.timestampISO).getTime() : null;
+        try {
+          await chatStmt.bind(msgId, msg.author, msg.body, tsMs, null, 'export').run();
+          chatStored++;
+        } catch(_) {}
+      }
+      // Ingest music URLs
       const urls = (msg.body?.match(/https?:\/\/[^\s<>"]+/gi) || [])
         .map(u => u.replace(/[)\].,!?]+$/, ''))
         .filter(u => isMusicUrl(u));
       for (const u of urls) {
-        const r = await ingestUrl(db, { author: msg.author, timestampISO: msg.timestampISO, url: u, body: msg.body });
+        const r = await ingestUrl(db, { author: msg.author, timestampISO: msg.timestampISO, url: u, body: msg.body }, env);
         if (r.skipped) skipped++; else added++;
       }
     }
-    return json({ ok: true, added, skipped });
+    // Link unlinked chat messages to tracks by URL/timestamp proximity
+    try {
+      const unlinked = await db.prepare(
+        "SELECT id, body, timestamp_ms FROM chat_messages WHERE track_id IS NULL AND body IS NOT NULL LIMIT 500"
+      ).all();
+      for (const cm of (unlinked.results || [])) {
+        // Check if message body contains a URL matching a known track
+        const urlsInMsg = (cm.body || '').match(/https?:\/\/[^\s]+/g) || [];
+        for (const u of urlsInMsg) {
+          const track = await db.prepare(
+            'SELECT id FROM tracks WHERE original_url=? LIMIT 1'
+          ).bind(u).first().catch(() => null);
+          if (track) {
+            await db.prepare('UPDATE chat_messages SET track_id=? WHERE id=?').bind(track.id, cm.id).run();
+            break;
+          }
+        }
+        // Link messages within 5 min after a track share to that track
+        if (cm.timestamp_ms) {
+          const nearby = await db.prepare(
+            'SELECT id FROM tracks WHERE ABS(CAST((julianday(shared_at) - julianday(\'1970-01-01\')) * 86400000 AS INTEGER) - ?) < 300000 LIMIT 1'
+          ).bind(cm.timestamp_ms).first().catch(() => null);
+          if (nearby) {
+            await db.prepare('UPDATE chat_messages SET track_id=? WHERE id=? AND track_id IS NULL').bind(nearby.id, cm.id).run();
+          }
+        }
+      }
+    } catch(_) {}
+    return json({ ok: true, added, skipped, chatStored });
   }
 
 
@@ -928,6 +969,38 @@ export async function onRequest({ request, env, params }) {
     return json({ messages: rows.results || [] });
   }
 
+  // POST /api/radio/kv-set — store a value in KV (admin use)
+  if (path === '/kv-set' && method === 'POST') {
+    const { key, value } = await request.json().catch(() => ({}));
+    if (!key || value === undefined) return json({ error: 'key and value required' }, 400);
+    await env.RADIO_SECRETS.put(key, String(value));
+    return json({ ok: true, key, value });
+  }
+
+  // POST /api/radio/apple-playlists — list user's library playlists (debug/setup)
+  if (path === '/apple-playlists' && method === 'GET') {
+    try {
+      const reqBody = await request.json().catch(() => ({}));
+      const userToken = reqBody.userToken || await env.RADIO_SECRETS.get('apple_music_user_token').catch(() => null);
+      if (!userToken) return json({ error: 'No user token' }, 401);
+      const privKey = await env.RADIO_SECRETS.get('apple_musickit_private_key');
+      const header = btoa(JSON.stringify({ alg: 'ES256', kid: 'CN395VFX55' })).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+      const now = Math.floor(Date.now()/1000);
+      const payload = btoa(JSON.stringify({ iss: 'X2B5SZQGDS', iat: now, exp: now + 3600 })).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+      const sigInput = `${header}.${payload}`;
+      const pemBody = privKey.replace(/-----.*?-----/g,'').replace(/\s/g,'');
+      const keyData = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+      const cryptoKey = await crypto.subtle.importKey('pkcs8', keyData, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+      const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, cryptoKey, new TextEncoder().encode(sigInput));
+      const devToken = `${sigInput}.${btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_')}`;
+      const amHeaders = { 'Authorization': `Bearer ${devToken}`, 'Music-User-Token': userToken };
+      const r = await fetch('https://api.music.apple.com/v1/me/library/playlists?limit=25', { headers: amHeaders });
+      const data = await r.json();
+      const playlists = (data.data || []).map(p => ({ id: p.id, name: p.attributes?.name, trackCount: p.attributes?.trackCount }));
+      return json({ playlists, total: data.meta?.total, status: r.status });
+    } catch(e) { return json({ error: e.message }, 500); }
+  }
+
   // GET /api/radio/chat — recent conversation timeline (all messages, newest first)
   if (path === '/chat' && method === 'GET') {
     const limit = parseInt(url.searchParams.get('limit') || '100');
@@ -1191,15 +1264,11 @@ export async function onRequest({ request, env, params }) {
 
       const amHeaders = { 'Authorization': `Bearer ${devToken}`, 'Music-User-Token': userToken, 'Content-Type': 'application/json' };
 
-      // Use a KV-stored playlist ID (one we created and own) — never use a shared playlist
-      const PLAYLIST_NAME = 'Music Fellowship Radio';
-      let playlistId = await env.RADIO_SECRETS.get('apple_owned_playlist_id').catch(() => null);
-
-      // Verify the stored playlist still exists and is writable
-      if (playlistId) {
-        const vr = await fetch(`https://api.music.apple.com/v1/me/library/playlists/${playlistId}`, { headers: amHeaders });
-        if (!vr.ok) playlistId = null; // stale, recreate
-      }
+      // Use configured playlist ID, or fall back to KV/name search
+      const PLAYLIST_NAME = 'Music Fellowship';
+      let playlistId = env.APPLE_MUSIC_PLAYLIST_ID
+        || await env.RADIO_SECRETS.get('apple_music_playlist_id').catch(() => null)
+        || null;
 
       // Get all Apple Music IDs from DB sorted newest first
       const rows = await db.prepare('SELECT apple_music_id FROM tracks WHERE enabled=1 AND apple_music_id IS NOT NULL ORDER BY COALESCE(shared_at, added_at) DESC').all();
