@@ -278,6 +278,7 @@ function shuffleArr(arr) {
 }
 
 function renderCatalog() {
+  if (chatMode && _allChatMsgs.length) setTimeout(renderInlineChat, 50);
   const tbody = document.querySelector('#catalog-table tbody');
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -988,8 +989,87 @@ function chatJumpToTrack(id) {
   }
 }
 
+// ── Chat toggle ──────────────────────────────────────────────
+let chatMode = localStorage.getItem('chatMode') === '1';
+let _allChatMsgs = [];
+
+function setChatMode(on) {
+  chatMode = on;
+  localStorage.setItem('chatMode', on ? '1' : '0');
+  const btn = document.getElementById('chat-toggle-btn');
+  const panel = document.getElementById('chat-console');
+  if (btn) btn.classList.toggle('active', on);
+  if (panel) panel.style.display = 'none'; // panel always hidden; inline only
+  if (on) {
+    if (!_allChatMsgs.length) loadChat();
+    else renderInlineChat();
+  } else {
+    // Remove all inline chat rows
+    document.querySelectorAll('.chat-inline-msg').forEach(e => e.remove());
+  }
+}
+
+function renderInlineChat() {
+  // Remove existing inline rows
+  document.querySelectorAll('.chat-inline-msg').forEach(e => e.remove());
+  if (!chatMode || !_allChatMsgs.length) return;
+
+  // Get track rows sorted by their shared_at data attribute
+  const tbody = document.querySelector('#catalog-table tbody, .catalog tbody, table tbody');
+  if (!tbody) return;
+
+  const rows = Array.from(tbody.querySelectorAll('tr[data-id]'));
+  if (!rows.length) return;
+
+  // Build map of track_id → DOM row
+  const rowMap = {};
+  rows.forEach(r => { rowMap[parseInt(r.dataset.id)] = r; });
+
+  // Group messages by track_id
+  const byTrack = {};
+  _allChatMsgs.forEach(m => {
+    if (!m.track_id) return;
+    if (!byTrack[m.track_id]) byTrack[m.track_id] = [];
+    byTrack[m.track_id].push(m);
+  });
+
+  // Inject messages after each track row
+  Object.keys(byTrack).forEach(tid => {
+    const row = rowMap[parseInt(tid)];
+    if (!row) return;
+    const msgs = byTrack[tid].filter(m => {
+      const b = stripNoise(m.body);
+      return b && !allUrls(b);
+    });
+    msgs.forEach(m => {
+      const el = document.createElement('tr');
+      el.className = 'chat-inline-msg';
+      const name = firstName(m.author) || '?';
+      const color = nameColor(m.author);
+      const b = stripNoise(m.body).slice(0, 120);
+      const ts = m.timestamp_ms ? new Date(m.timestamp_ms).toLocaleDateString([], {month:'short',day:'numeric'}) : '';
+      el.innerHTML = `<td colspan="99" style="padding:0">
+        <div class="chat-inline-msg">
+          <span class="ci-name ${color}">${esc(name)}</span>
+          <span class="ci-body">${esc(b)}</span>
+          <span class="ci-ts">${ts}</span>
+        </div></td>`;
+      row.after(el);
+    });
+  });
+}
+
+document.getElementById('chat-toggle-btn')?.addEventListener('click', function() {
+  setChatMode(!chatMode);
+});
+
+// Init
+if (chatMode) {
+  const btn = document.getElementById('chat-toggle-btn');
+  if (btn) btn.classList.add('active');
+}
+
 loadChat();
-document.getElementById('chat-load-more')?.addEventListener('click', () => loadChat(true));
 
 // Click on chat track card → play that track
 document.getElementById('chat-feed')?.addEventListener('click', function(e) {

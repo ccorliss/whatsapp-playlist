@@ -133,6 +133,22 @@
   .cn0{color:#60a5fa!important} .cn1{color:#34d399!important} .cn2{color:#f472b6!important}
   .cn3{color:#a78bfa!important} .cn4{color:#fb923c!important} .cn5{color:#38bdf8!important}
   .cn6{color:#facc15!important} .cn7{color:#4ade80!important}
+  
+  /* inline chat in tracklist */
+  .chat-inline-msg {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 8px 4px 12px;
+    font-size: 11px;
+    opacity: .65;
+    border-left: 2px solid rgba(255,255,255,.06);
+    margin: 1px 0;
+  }
+  .chat-inline-msg .ci-name { font-weight: 700; flex-shrink: 0; }
+  .chat-inline-msg .ci-body { flex: 1; word-break: break-word; }
+  .chat-inline-msg .ci-ts { opacity: .4; font-size: 10px; flex-shrink: 0; }
+  #chat-toggle-btn.active { background: rgba(245,158,11,.2); color: #f59e0b; border-color: rgba(245,158,11,.4); }
   </style>
 </head>
 <body>
@@ -237,7 +253,7 @@
     </section>
 
     <!-- CHAT CONSOLE -->
-    <div id="chat-console">
+    <div id="chat-console" style="display:none">
       <div id="chat-console-header">
         <span class="chat-console-title">💬 Music Fellowship</span>
       </div>
@@ -250,6 +266,7 @@
         <h3>Playlist <span id="catalog-count" class="muted"></span></h3>
         <div class="catalog-controls">
           <button class="shuffle-btn" id="shuffle-btn">⇄ Shuffle</button>
+          <button class="filter-btn" id="chat-toggle-btn">💬 Chat</button>
           <div class="filter-bar" id="filter-bar">
             <button class="filter-btn active" data-filter="all">All <span class="filter-badge" id="badge-all"></span></button>
             <button class="filter-btn" data-filter="month">Month <span class="filter-badge" id="badge-month"></span></button>
