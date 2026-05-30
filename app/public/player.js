@@ -990,9 +990,3 @@ document.getElementById('chat-load-more')?.addEventListener('click', () => loadC
   };
 })();
 
-// Scroll-up infinite load
-document.getElementById('chat-feed')?.addEventListener('scroll', function() {
-  if (this.scrollTop < 60 && !_chatLoading && _chatBefore) {
-    loadChat(true);
-  }
-});
