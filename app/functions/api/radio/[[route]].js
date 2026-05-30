@@ -372,6 +372,26 @@ async function ingestUrl(db, { author, timestampISO, url, body }, env) {
     } catch(_) {}
   }
 
+  // YouTube search — always run if no ytId yet and we have title to search with
+  let resolvedYtId = ytId;
+  if (!ytId && title) {
+    try {
+      const ytKey = env.YOUTUBE_API_KEY || await env.RADIO_SECRETS.get('youtube_api_key').catch(() => null);
+      if (ytKey) {
+        const q = encodeURIComponent([artist, title].filter(Boolean).join(' '));
+        const r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=1&q=${q}&key=${ytKey}`);
+        if (r.ok) {
+          const d = await r.json();
+          const vid = d.items?.[0]?.id?.videoId;
+          if (vid) {
+            resolvedYtId = vid;
+            if (!thumb) thumb = `https://img.youtube.com/vi/${vid}/mqdefault.jpg`;
+          }
+        }
+      }
+    } catch(_) {}
+  }
+
   // Use YouTube channel as last resort artist
   if (!artist && ytChannelArtist) artist = ytChannelArtist;
 
@@ -381,7 +401,7 @@ async function ingestUrl(db, { author, timestampISO, url, body }, env) {
   const entityId = `URL::${url}`;
   const existing2 = await db.prepare('SELECT id FROM tracks WHERE entity_id = ? OR original_url = ?').bind(entityId, url).first();
   if (!existing2) {
-    const r = await db.prepare(`INSERT INTO tracks (entity_id,original_url,title,artist,thumbnail_url,youtube_id,spotify_url,apple_url,song_link_url,apple_music_id,shared_by,shared_at,commentary) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(entityId, url, title, artist, thumb, ytId, spotifyUrl, appleUrl, songLink, appleId, author||null, timestampISO||null, cleanCommentary(body,url)||null).run();
+    const r = await db.prepare(`INSERT INTO tracks (entity_id,original_url,title,artist,thumbnail_url,youtube_id,spotify_url,apple_url,song_link_url,apple_music_id,shared_by,shared_at,commentary) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(entityId, url, title, artist, thumb, resolvedYtId, spotifyUrl, appleUrl, songLink, appleId, author||null, timestampISO||null, cleanCommentary(body,url)||null).run();
     const trackId = r.meta?.last_row_id;
     await db.prepare('INSERT OR IGNORE INTO share_messages (message_id,track_id,url) VALUES (?,?,?)').bind(msgKey, trackId, url).run();
     return { skipped: false, trackId };
