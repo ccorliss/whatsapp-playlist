@@ -1058,50 +1058,6 @@ function renderInlineChat() {
   if (!insertedCount) console.log('chat: no messages matched track rows');
 }
 
-function renderInlineChat() {
-  // Remove existing inline rows
-  document.querySelectorAll('.chat-inline-row').forEach(e => e.remove());
-  if (!chatMode || !_allChatMsgs.length) return;
-
-  // Get track rows sorted by their shared_at data attribute
-  const tbody = document.querySelector('#catalog-table tbody, .catalog tbody, table tbody');
-  if (!tbody) return;
-
-  const rows = Array.from(tbody.querySelectorAll('tr[data-id]'));
-  if (!rows.length) return;
-
-  // Build map of track_id → DOM row
-  const rowMap = {};
-  rows.forEach(r => { rowMap[parseInt(r.dataset.id)] = r; });
-
-  // Group messages by track_id
-  const byTrack = {};
-  _allChatMsgs.forEach(m => {
-    if (!m.track_id) return;
-    if (!byTrack[m.track_id]) byTrack[m.track_id] = [];
-    byTrack[m.track_id].push(m);
-  });
-
-  // Inject messages after each track row — show all linked messages
-  Object.keys(byTrack).forEach(tid => {
-    const row = rowMap[parseInt(tid)];
-    if (!row) return;
-    const msgs = byTrack[tid].filter(m => firstName(m.author)); // skip @lid IDs
-    msgs.forEach(m => {
-      const el = document.createElement('tr');
-      el.className = 'chat-inline-row';
-      const name = firstName(m.author);
-      const color = nameColor(m.author);
-      const rawBody = stripNoise(m.body);
-      const hasText = rawBody && !allUrls(rawBody);
-      const bodyPart = hasText ? esc(rawBody.slice(0, 100)) : '<span style="opacity:.35">shared this</span>';
-      const ts = m.timestamp_ms ? new Date(m.timestamp_ms).toLocaleDateString([], {month:'short',day:'numeric'}) : '';
-      el.innerHTML = `<td colspan="99" style="padding:0"><div style="display:flex;align-items:baseline;gap:6px;padding:3px 12px;font-size:11px;opacity:.6;border-left:2px solid rgba(255,255,255,.06)"><span style="font-weight:700;flex-shrink:0" class="${color}">${esc(name)}</span><span style="flex:1;word-break:break-word">${bodyPart}</span><span style="opacity:.4;font-size:10px;flex-shrink:0">${ts}</span></div></td>`;
-      row.after(el);
-    });
-  });
-}
-
 document.getElementById('chat-toggle-btn')?.addEventListener('click', function() {
   setChatMode(!chatMode);
 });

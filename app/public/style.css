@@ -187,7 +187,7 @@ a:hover { color: var(--amber); }
 .search-input::placeholder { color: var(--ink-faint); }
 
 /* ── Track table — Apple Music style ── */
-.catalog table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.catalog table { width: 100%; border-collapse: collapse; font-size: 0.85rem; table-layout: fixed; }
 .catalog th {
   padding: 6px 8px; border-bottom: 1px solid var(--line);
   text-align: left; color: var(--ink-faint); font-weight: 500;
