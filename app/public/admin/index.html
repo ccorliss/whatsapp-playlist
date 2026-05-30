@@ -493,9 +493,7 @@
       if (!window.MusicKit) { await new Promise(function(res,rej){var s=document.createElement('script');s.src='https://js-cdn.music.apple.com/musickit/v3/musickit.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);}); }
       var tr = await fetch('/api/radio/apple-token'); var { token: devToken } = await tr.json();
       var mk = await MusicKit.configure({ developerToken: devToken, app: { name: 'Music Fellowship', build: '1.0' } });
-      try { await mk.unauthorize(); } catch(_) {}
-      await mk.authorize();
-      var userToken = mk.musicUserToken;
+      var userToken = (await mk.authorize()) || mk.musicUserToken;
       if (!userToken) throw new Error('Authorization failed');
       st.textContent = 'Searching all playlists...';
       var r = await fetch('/api/radio/apple-playlists', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userToken})});
@@ -514,17 +512,17 @@
       if (!window.MusicKit) { await new Promise(function(res,rej){var s=document.createElement('script');s.src='https://js-cdn.music.apple.com/musickit/v3/musickit.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);}); }
       var tr = await fetch('/api/radio/apple-token'); var { token: devToken } = await tr.json();
       var mk = await MusicKit.configure({ developerToken: devToken, app: { name: 'Music Fellowship', build: '1.0' } });
-      // Force fresh auth — clear any cached/expired token first
-      try { await mk.unauthorize(); } catch(_) {}
-      await mk.authorize();
-      var userToken = mk.musicUserToken;
+      var userToken = (await mk.authorize()) || mk.musicUserToken; // silent if cached
       if (!userToken) throw new Error('Authorization failed — make sure you are signed in to Apple Music in this browser');
       await fetch('/api/radio/store-apple-token', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:userToken})});
       st.textContent = 'Syncing...';
       var r = await fetch('/api/radio/apple-sync', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userToken})});
       var d = await r.json();
-      if (d.ok) st.textContent = '✓ ' + d.added + ' synced' + (d.failed ? ', ' + d.failed + ' skipped' : '') + ' to Apple Music';
-      else st.textContent = '✗ ' + (d.error || 'failed') + (d.errors?.length ? ' (' + d.errors[0] + ')' : '');
+      var detail = d.errors?.length ? ' — ' + d.errors[0] : '';
+      if (d.ok && d.added > 0) st.textContent = '✓ ' + d.added + ' synced' + (d.failed ? ', ' + d.failed + ' skipped' : '') + ' to Apple Music';
+      else if (d.ok && d.failed > 0) st.textContent = '✗ All ' + d.failed + ' failed' + detail;
+      else if (d.ok) st.textContent = '✓ All synced to Apple Music';
+      else st.textContent = '✗ ' + (d.error || 'failed') + detail;
     } catch(e) { st.textContent = '✗ ' + e.message; }
     btn.disabled = false;
   });
