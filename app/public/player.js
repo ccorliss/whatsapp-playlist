@@ -308,7 +308,6 @@ function renderCatalog() {
     if (t.reactions?.heart)   rb.push('❤️' + t.reactions.heart);
     if (t.reactions?.fire)    rb.push('🔥' + t.reactions.fire);
     if (t.reactions?.hundred) rb.push('💯' + t.reactions.hundred);
-    if (t.reactions?.down)    rb.push('👎' + t.reactions.down);
     if (t.reactions?.prayer)  rb.push('🙏' + t.reactions.prayer);
     const reactionHtml = rb.length
       ? `<span class="react-pills">${rb.join(' ')}</span>`
