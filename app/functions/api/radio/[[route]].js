@@ -1151,11 +1151,13 @@ export async function onRequest({ request, env, params }) {
     const before = url.searchParams.get('before'); // timestamp_ms for pagination
     const whereClause = before ? 'WHERE timestamp_ms < ?' : '';
     const bindArgs = before ? [parseInt(before), limit] : [limit];
+    // Deduplicate by keeping only the first occurrence per (author, body prefix)
     const rows = await db.prepare(
       `SELECT cm.author, cm.body, cm.timestamp_ms, cm.reply_to_id, cm.track_id,
               t.title AS track_title, t.artist AS track_artist, t.youtube_id, t.thumbnail_url
        FROM chat_messages cm LEFT JOIN tracks t ON cm.track_id = t.id
-       ${whereClause} ORDER BY cm.timestamp_ms DESC LIMIT ?`
+       WHERE cm.id IN (SELECT MIN(id) FROM chat_messages GROUP BY author, substr(body,1,80))
+       ${whereClause ? 'AND cm.timestamp_ms < ?' : ''} ORDER BY cm.timestamp_ms DESC LIMIT ?`
     ).bind(...bindArgs).all();
     return json({ messages: rows.results || [] });
   }
