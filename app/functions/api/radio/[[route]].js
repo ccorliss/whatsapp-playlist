@@ -1531,20 +1531,18 @@ export async function onRequest({ request, env, params }) {
       youtube.error = !ytKey ? 'YOUTUBE_API_KEY not configured' : 'YOUTUBE_PLAYLIST_ID not configured';
     }
 
-    // Spotify sync state (from KV — sync-runner updates this)
-    let spotify = { playlist_id: spPlaylist, synced: null, last_sync: null };
+    // Spotify: use D1 count as ground truth (tracks with spotify_url = tracks synced)
+    let spotify = { playlist_id: spPlaylist, synced: d1.with_spotify, last_sync: null };
     try {
       const spStatus = await env.RADIO_SECRETS.get('sync_spotify_status');
       if (spStatus) {
         const s = JSON.parse(spStatus);
-        spotify.last_sync = { at: s.at, added: s.added, failed: s.failed };
+        spotify.last_sync = { at: s.at, added: s.added };
       }
-      const spSynced = await env.RADIO_SECRETS.get('spotify_synced_count');
-      if (spSynced) spotify.synced = parseInt(spSynced, 10);
     } catch (_) {}
 
-    // Apple Music sync state (from KV)
-    let apple = { synced: null, last_sync: null };
+    // Apple Music: use D1 count as ground truth
+    let apple = { synced: d1.with_apple, last_sync: null };
     try {
       const apStatus = await env.RADIO_SECRETS.get('sync_apple_status');
       if (apStatus) {

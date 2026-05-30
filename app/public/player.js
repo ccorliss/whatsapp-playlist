@@ -999,7 +999,7 @@ function chatJumpToTrack(id) {
 }
 
 // ── Chat toggle ──────────────────────────────────────────────
-let chatMode = localStorage.getItem('chatMode') === '1';
+let chatMode = false; // always default off; user enables per session
 let _allChatMsgs = [];
 
 function setChatMode(on) {
@@ -1045,13 +1045,13 @@ function renderInlineChat() {
     byTrack[tid].forEach(m => {
       const rawBody = stripNoise(m.body);
       const hasText = rawBody && !allUrls(rawBody);
-      const bodyText = hasText ? rawBody.slice(0,120) : null;
+      if (!hasText) return; // skip URL-only messages
       const el = document.createElement('tr');
       el.className = 'chat-inline-row';
       const name = firstName(m.author);
       const color = nameColor(m.author);
       const ts = m.timestamp_ms ? new Date(m.timestamp_ms).toLocaleDateString([],{month:'short',day:'numeric'}) : '';
-      el.innerHTML = `<td colspan="99" style="padding:0"><div style="display:flex;align-items:center;gap:6px;padding:3px 12px 3px 52px;font-size:11px;color:rgba(255,255,255,.5);border-left:2px solid rgba(255,255,255,.05)"><span style="font-weight:700;font-size:10px" class="${color}">${esc(name)}</span><span style="flex:1">${bodyText ? esc(bodyText) : '<i style="opacity:.4">shared this</i>'}</span><span style="opacity:.3;font-size:10px;flex-shrink:0">${ts}</span></div></td>`;
+      el.innerHTML = `<td colspan="99" style="padding:0"><div style="display:flex;align-items:center;gap:6px;padding:2px 12px 2px 52px;font-size:11px;color:rgba(255,255,255,.45)"><span style="font-weight:700;font-size:10px;flex-shrink:0" class="${color}">${esc(name)}</span><span style="flex:1;font-style:italic">${esc(rawBody.slice(0,100))}</span><span style="opacity:.3;font-size:10px;flex-shrink:0">${ts}</span></div></td>`;
       frag.appendChild(el);
       insertedCount++;
     });
@@ -1064,11 +1064,7 @@ document.getElementById('chat-toggle-btn')?.addEventListener('click', function()
   setChatMode(!chatMode);
 });
 
-// Init
-if (chatMode) {
-  const btn = document.getElementById('chat-toggle-btn');
-  if (btn) btn.classList.add('active');
-}
+// Chat mode always starts off
 
 loadChat();
 
