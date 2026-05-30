@@ -481,16 +481,35 @@ footer { margin-top: 36px; padding-top: 16px; border-top: 1px solid var(--line-s
 
 .btn-add {
   font-size: 0.72rem;
-  font-weight: 600;
-  color: rgba(255,255,255,.4);
+  font-weight: 700;
+  color: #fff;
   text-decoration: none;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,.12);
-  align-self: flex-start;
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: #25D366;
+  margin-left: auto;
   flex-shrink: 0;
-  margin-top: 4px;
   letter-spacing: .03em;
-  transition: color .15s, border-color .15s;
+  transition: background .15s;
 }
-.btn-add:hover { color: rgba(255,255,255,.8); border-color: rgba(255,255,255,.3); }
+.btn-add:hover { background: #1ebe5a; }
+
+/* ── Playlist tabs nav ── */
+.playlist-tabs {
+  display: flex; gap: 4px; padding: 8px 16px;
+  align-items: center;
+  background: var(--bg); border-bottom: 1px solid var(--line-soft);
+  position: sticky; top: var(--topbar-h); z-index: 15;
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+}
+.ptab {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 13px; border-radius: 20px; font-size: 0.75rem;
+  font-family: inherit; font-weight: 500; cursor: pointer;
+  border: 1px solid var(--line); background: var(--bg-alt); color: var(--ink-soft);
+  text-decoration: none;
+  transition: all 0.12s; white-space: nowrap;
+}
+.ptab:hover { border-color: var(--blue-soft); color: var(--ink); }
+.ptab svg { opacity: 0.7; }
+.ptab:hover svg { opacity: 1; }
