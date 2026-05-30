@@ -919,3 +919,93 @@ document.getElementById('chat-toggle')?.addEventListener('click', function() {
   container.style.display = chatVisible ? '' : 'none';
   this.textContent = chatVisible ? 'hide' : 'show';
 });
+
+// ── Full chat timeline ────────────────────────────────────────
+let chatBefore = null;
+let chatLoading = false;
+const CHAT_PAGE = 40;
+
+async function loadChat(append = false) {
+  if (chatLoading) return;
+  chatLoading = true;
+  const feed = document.getElementById('chat-feed');
+  const loadBtn = document.getElementById('chat-load-more');
+  if (!feed) return;
+
+  const url = `/api/radio/chat?limit=${CHAT_PAGE}${chatBefore ? '&before=' + chatBefore : ''}`;
+  try {
+    const r = await fetch(url);
+    const d = await r.json();
+    const msgs = d.messages || [];
+
+    if (!append) feed.innerHTML = '';
+
+    if (msgs.length === 0 && !append) {
+      feed.innerHTML = '<div style="opacity:.4;font-size:13px;padding:12px 0">No messages yet. Import a WhatsApp export from the admin page.</div>';
+      if (loadBtn) loadBtn.style.display = 'none';
+      return;
+    }
+
+    // Messages come newest-first from API, render oldest-first
+    const toRender = [...msgs].reverse();
+    toRender.forEach(m => {
+      const el = document.createElement('div');
+      const isMe = (m.author || '').includes('Curtis') || (m.author || '').toLowerCase().includes('curtis');
+      el.className = 'chat-msg ' + (isMe ? 'me' : 'other') + (m.track_id ? ' track-msg' : '');
+      el.dataset.msgTs = m.timestamp_ms || '';
+      el.dataset.trackId = m.track_id || '';
+      const ts = m.timestamp_ms ? new Date(m.timestamp_ms).toLocaleDateString(undefined, {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+      const trackRef = m.track_title ? `<div class="track-ref">🎵 ${esc(m.track_title)}${m.track_artist ? ' — ' + esc(m.track_artist) : ''}</div>` : '';
+      el.innerHTML = (!isMe ? `<div class="author">${esc(m.author || 'Unknown')}</div>` : '') +
+        `<div class="body">${esc(m.body || '')}</div>` +
+        trackRef +
+        `<div class="ts">${ts}</div>`;
+      if (append) feed.insertBefore(el, feed.firstChild);
+      else feed.appendChild(el);
+    });
+
+    const count = document.getElementById('chat-count');
+    if (count) count.textContent = feed.querySelectorAll('.chat-msg').length + ' messages';
+
+    if (msgs.length === CHAT_PAGE) {
+      chatBefore = msgs[msgs.length - 1].timestamp_ms;
+      if (loadBtn) loadBtn.style.display = '';
+    } else {
+      if (loadBtn) loadBtn.style.display = 'none';
+    }
+
+    // Scroll to bottom on initial load
+    if (!append) feed.scrollTop = feed.scrollHeight;
+
+  } catch(e) {
+    if (!append) feed.innerHTML = '<div style="color:#c00;font-size:13px">Could not load chat.</div>';
+  }
+  chatLoading = false;
+}
+
+function jumpToTrackInChat(trackId) {
+  const feed = document.getElementById('chat-feed');
+  if (!feed || !trackId) return;
+  // Remove previous highlights
+  feed.querySelectorAll('.highlighted').forEach(el => el.classList.remove('highlighted'));
+  // Find and scroll to first message for this track
+  const match = feed.querySelector(`[data-track-id="${trackId}"]`);
+  if (match) {
+    match.classList.add('highlighted');
+    match.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => match.classList.remove('highlighted'), 3000);
+  }
+}
+
+// Load chat on page load
+loadChat();
+
+document.getElementById('chat-load-more')?.addEventListener('click', () => loadChat(true));
+
+// Hook into track selection to jump to chat context
+const _origLoadChatPanel = loadChatPanel;
+loadChatPanel = function(track) {
+  // Update the small per-track panel (if still needed)
+  // Also jump to chat section
+  if (track?.id) jumpToTrackInChat(track.id);
+};

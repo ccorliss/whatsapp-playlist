@@ -90,6 +90,7 @@
     <label>Keeps the YouTube playlist up to date with all songs in the database. <a href="https://www.youtube.com/playlist?list=PLCAHLCyIUVd4GrKHuo1XMPtUwi-aJ0JMl" target="_blank" style="color:var(--blue)">View playlist ↗</a></label>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn sec" id="yt-btn">Sync YouTube Now</button>
+      <button class="btn sec" id="yt-rebuild-btn">Fix Order</button>
     </div>
     <div class="st" id="yt-st"></div>
   </div>
@@ -99,6 +100,7 @@
     <label>Syncs automatically when new songs are added. <a href="https://open.spotify.com/playlist/7LfI3fegT1MYwnoqGlHLto" target="_blank" style="color:var(--blue)">View playlist ↗</a></label>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn sec" id="spotify-sync-btn">Sync Spotify (auto)</button>
+      <button class="btn sec" id="sp-rebuild-btn">Fix Order</button>
     </div>
     <div class="st" id="spotify-st"></div>
   </div>
@@ -653,6 +655,27 @@
 
   document.getElementById('track-search').addEventListener('input', function() {
     if (allTracks.length) renderTrackList(this.value);
+  });
+
+  // ── Fix playlist order (rebuild) ────────────────────────────────
+  function rebuildPlatform(platform, btn, st) {
+    btn.disabled = true; st.textContent = 'Rebuilding order...';
+    fetch('/api/radio/rebuild-order', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ platform })
+    }).then(function(r){ return r.json(); }).then(function(d) {
+      var r = d.results?.[platform];
+      if (r?.error) st.textContent = '✗ ' + r.error;
+      else if (r?.added) st.textContent = '✓ Rebuilt: ' + r.added + ' tracks in correct order';
+      else st.textContent = '✓ Done: ' + JSON.stringify(r);
+      btn.disabled = false;
+    }).catch(function(e){ st.textContent = '✗ ' + e.message; btn.disabled = false; });
+  }
+  document.getElementById('yt-rebuild-btn').addEventListener('click', function() {
+    rebuildPlatform('youtube', this, document.getElementById('yt-st'));
+  });
+  document.getElementById('sp-rebuild-btn').addEventListener('click', function() {
+    rebuildPlatform('spotify', this, document.getElementById('spotify-st'));
   });
 
 })();

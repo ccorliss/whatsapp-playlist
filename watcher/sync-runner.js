@@ -72,17 +72,15 @@ async function check() {
   // Spotify: Playwright adds new tracks, then CF API does full reorder (newest first)
   try {
     execSync(`node ${path.join(__dirname, 'spotify-sync.js')}`, { stdio: 'inherit' });
+    // Reorder playlist newest-first via Playwright token capture
+    execSync(`node ${path.join(__dirname, 'spotify-sync.js')} --reorder`, { stdio: 'inherit' });
     const synced = loadSynced();
-    log(`Spotify Playwright sync complete. Total synced: ${synced.size}`);
-    // Full CF reorder to keep playlist newest-first
-    const sd = await callCfSync('spotify');
-    if (sd?.ok) {
-      await fetch(`${RADIO_API_URL}/api/radio/sync-complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'spotify', added: synced.size, at: new Date().toISOString() }),
-      }).catch(() => {});
-    }
+    log(`Spotify sync + reorder complete. Total: ${synced.size}`);
+    await fetch(`${RADIO_API_URL}/api/radio/sync-complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'spotify', added: synced.size, at: new Date().toISOString() }),
+    }).catch(() => {});
   } catch (e) {
     log('Spotify sync failed:', e.message);
   }

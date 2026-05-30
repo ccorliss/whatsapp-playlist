@@ -884,6 +884,138 @@ export async function onRequest({ request, env, params }) {
     return json({ tracks: (rows.results || []).map(trackToJson) });
   }
 
+  // POST /api/radio/rebuild-order — clear + rebuild all three playlists newest-first
+  if (path === '/rebuild-order' && method === 'POST') {
+    const { platform } = await request.json().catch(() => ({}));
+    const results = {};
+
+    // ─ Tracks sorted newest first ─
+    const trackRows = await db.prepare(
+      'SELECT youtube_id, spotify_url, apple_music_id FROM tracks WHERE youtube_id IS NOT NULL OR spotify_url IS NOT NULL OR apple_music_id IS NOT NULL ORDER BY COALESCE(shared_at, added_at) DESC'
+    ).all();
+    const tracks = trackRows.results || [];
+    const ytIds     = tracks.filter(t => t.youtube_id).map(t => t.youtube_id);
+    const spUris    = tracks.filter(t => t.spotify_url?.includes('/track/')).map(t => 'spotify:track:' + t.spotify_url.match(/track\/([A-Za-z0-9]+)/)?.[1]).filter(Boolean);
+    const appleIds  = tracks.filter(t => t.apple_music_id).map(t => t.apple_music_id);
+
+    // ─ YouTube: delete all items, re-add oldest-first at position:0 (newest ends at top) ─
+    if (!platform || platform === 'youtube') {
+      try {
+        const clientId = await env.RADIO_SECRETS.get('youtube_client_id');
+        const clientSecret = await env.RADIO_SECRETS.get('youtube_client_secret');
+        const refreshToken = await env.RADIO_SECRETS.get('youtube_refresh_token');
+        const playlistId = env.YOUTUBE_PLAYLIST_ID;
+        const tokenResp = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: 'refresh_token' }).toString(),
+        });
+        const { access_token: ytToken } = await tokenResp.json();
+        const ytHeaders = { 'Authorization': 'Bearer ' + ytToken, 'Content-Type': 'application/json' };
+
+        // Fetch and delete all current items
+        let pageToken = '', deleted = 0;
+        do {
+          const r = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=id&playlistId=${playlistId}&maxResults=50${pageToken ? '&pageToken=' + pageToken : ''}`, { headers: ytHeaders });
+          const data = await r.json();
+          if (data.error) break;
+          for (const item of (data.items || [])) {
+            await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?id=${item.id}`, { method: 'DELETE', headers: ytHeaders });
+            deleted++;
+          }
+          pageToken = data.nextPageToken || '';
+        } while (pageToken);
+
+        // Re-add oldest-first at position 0 (so newest inserted last = stays at top)
+        let added = 0;
+        const ytIdsAsc = [...ytIds].reverse(); // ASC = oldest first
+        for (const ytId of ytIdsAsc) {
+          const r = await fetch('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet', {
+            method: 'POST', headers: ytHeaders,
+            body: JSON.stringify({ snippet: { playlistId, resourceId: { kind: 'youtube#video', videoId: ytId }, position: 0 } }),
+          });
+          if (r.ok) added++;
+          await new Promise(r => setTimeout(r, 150));
+        }
+        results.youtube = { deleted, added };
+      } catch(e) { results.youtube = { error: e.message }; }
+    }
+
+    // ─ Spotify: clear + re-add DESC (newest first = appended first = top) ─
+    if (!platform || platform === 'spotify') {
+      try {
+        const accessToken = await env.RADIO_SECRETS.get('spotify_access_token');
+        const refreshToken = await env.RADIO_SECRETS.get('spotify_refresh_token');
+        const clientId = env.SPOTIFY_CLIENT_ID;
+        const clientSecret = await env.RADIO_SECRETS.get('spotify_client_secret');
+        let token = accessToken;
+        // Refresh if needed
+        if (refreshToken) {
+          const tr = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': 'Basic ' + btoa(clientId + ':' + clientSecret) },
+            body: 'grant_type=refresh_token&refresh_token=' + refreshToken,
+          });
+          const td = await tr.json();
+          if (td.access_token) { token = td.access_token; await env.RADIO_SECRETS.put('spotify_access_token', token); }
+        }
+        const playlistId = await env.RADIO_SECRETS.get('spotify_playlist_id');
+        const spHeaders = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+        // Clear
+        await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+          method: 'PUT', headers: spHeaders, body: JSON.stringify({ uris: [] }),
+        });
+        // Re-add DESC (newest first)
+        let added = 0;
+        for (let i = 0; i < spUris.length; i += 100) {
+          const r = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+            method: 'POST', headers: spHeaders, body: JSON.stringify({ uris: spUris.slice(i, i + 100) }),
+          });
+          if (r.ok) added += Math.min(100, spUris.length - i);
+        }
+        results.spotify = { added };
+      } catch(e) { results.spotify = { error: e.message }; }
+    }
+
+    // ─ Apple Music: clear + re-add DESC (newest first = appended first = top) ─
+    if (!platform || platform === 'apple') {
+      try {
+        const reqBody2 = await request.json().catch(() => ({}));
+        const userToken = reqBody2.userToken || await env.RADIO_SECRETS.get('apple_music_user_token').catch(() => null);
+        const applePlaylistId = env.APPLE_MUSIC_PLAYLIST_ID || await env.RADIO_SECRETS.get('apple_music_playlist_id').catch(() => null);
+        if (userToken && applePlaylistId) {
+          // Generate dev token (reuse pattern from apple-sync)
+          const privKey = await env.RADIO_SECRETS.get('apple_musickit_private_key');
+          const header = btoa(JSON.stringify({ alg: 'ES256', kid: 'CN395VFX55' })).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+          const now2 = Math.floor(Date.now()/1000);
+          const payload2 = btoa(JSON.stringify({ iss: 'X2B5SZQGDS', iat: now2, exp: now2 + 3600 })).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+          const si2 = `${header}.${payload2}`;
+          const pemBody2 = privKey.replace(/-----.*?-----/g,'').replace(/\s/g,'');
+          const kd2 = Uint8Array.from(atob(pemBody2), c => c.charCodeAt(0));
+          const ck2 = await crypto.subtle.importKey('pkcs8', kd2, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+          const sig2 = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, ck2, new TextEncoder().encode(si2));
+          const devToken2 = `${si2}.${btoa(String.fromCharCode(...new Uint8Array(sig2))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_')}`;
+          const amH = { 'Authorization': `Bearer ${devToken2}`, 'Music-User-Token': userToken, 'Content-Type': 'application/json' };
+          // Clear by replacing with empty
+          await fetch(`https://api.music.apple.com/v1/me/library/playlists/${applePlaylistId}/tracks`, {
+            method: 'DELETE', headers: amH,
+            body: JSON.stringify({ data: appleIds.map(id => ({ id, type: 'songs' })) })
+          }).catch(() => {});
+          // Re-add DESC in batches of 25
+          let added = 0;
+          for (let i = 0; i < appleIds.length; i += 25) {
+            const r = await fetch(`https://api.music.apple.com/v1/me/library/playlists/${applePlaylistId}/tracks`, {
+              method: 'POST', headers: amH,
+              body: JSON.stringify({ data: appleIds.slice(i, i+25).map(id => ({ id, type: 'songs' })) })
+            });
+            if (r.ok || r.status === 204) added += 25;
+          }
+          results.apple = { added };
+        } else { results.apple = { error: 'No user token or playlist ID' }; }
+      } catch(e) { results.apple = { error: e.message }; }
+    }
+
+    return json({ ok: true, results });
+  }
+
   // POST /api/radio/wipe — clear all data (admin only)
   if (path === '/wipe' && method === 'POST') {
     await db.prepare('DELETE FROM reactions').run();
@@ -1284,8 +1416,8 @@ export async function onRequest({ request, env, params }) {
 
       if (!playlistId) return json({ ok: false, error: 'No Apple Music playlist ID configured. Set apple_music_playlist_id in KV.' }, 400);
 
-      // Get all Apple Music IDs from DB sorted newest first
-      const rows = await db.prepare('SELECT apple_music_id FROM tracks WHERE enabled=1 AND apple_music_id IS NOT NULL ORDER BY COALESCE(shared_at, added_at) DESC').all();
+      // Get all Apple Music IDs sorted newest first (DESC = newest appended first = top of playlist)
+      const rows = await db.prepare('SELECT apple_music_id FROM tracks WHERE apple_music_id IS NOT NULL ORDER BY COALESCE(shared_at, added_at) DESC').all();
       const catalogIds = (rows.results || []).map(r => r.apple_music_id);
 
       // playlistId is required — set via KV

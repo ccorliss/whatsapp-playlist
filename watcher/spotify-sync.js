@@ -183,6 +183,64 @@ async function runSync(dryRun = false) {
   if (fail > 0) process.exit(1);
 }
 
+// ── Reorder: capture Bearer token via Playwright, then PUT full playlist in DESC order ──
+async function runReorder() {
+  const PLAYLIST_ID = process.env.SPOTIFY_PLAYLIST_ID || '7LfI3fegT1MYwnoqGlHLto';
+
+  // Fetch tracks newest-first from CF API
+  const r = await fetch(`${RADIO_API_URL}/api/radio/all?sort=date&filter=all`);
+  const data = await r.json();
+  const uris = (data.tracks || [])
+    .filter(t => t.spotify_url?.includes('/track/'))
+    .map(t => { const m = t.spotify_url.match(/track\/([A-Za-z0-9]+)/); return m ? `spotify:track:${m[1]}` : null; })
+    .filter(Boolean);
+
+  log(`Reordering ${uris.length} tracks (newest first)...`);
+
+  // Launch browser to capture Bearer token from Spotify API requests
+  const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  const context = await makeContext(browser, true);
+  const page = await context.newPage();
+  let token = null;
+  page.on('request', req => {
+    const auth = req.headers()['authorization'];
+    if (auth?.startsWith('Bearer ') && req.url().includes('api.spotify.com')) {
+      token = auth.replace('Bearer ', '');
+    }
+  });
+
+  // Go directly to playlist — Bearer token appears in initial page load requests
+  log('Loading playlist to capture token...');
+  await page.goto(`https://open.spotify.com/playlist/${PLAYLIST_ID}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.waitForTimeout(6000); // wait for JS to init and fire API calls
+  if (!token) {
+    await page.waitForTimeout(4000); // extra wait
+  }
+  await browser.close();
+
+  if (!token) { log('Could not capture token — run --auth first'); process.exit(1); }
+
+  const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+  // PUT first 100 (replaces entire playlist)
+  const r1 = await fetch(`https://api.spotify.com/v1/playlists/${PLAYLIST_ID}/tracks`, {
+    method: 'PUT', headers, body: JSON.stringify({ uris: uris.slice(0, 100) }),
+  });
+  if (!r1.ok) { log('PUT failed:', r1.status, await r1.text()); process.exit(1); }
+  log(`Set first ${Math.min(uris.length, 100)} tracks.`);
+
+  // POST remaining batches
+  for (let i = 100; i < uris.length; i += 100) {
+    const rn = await fetch(`https://api.spotify.com/v1/playlists/${PLAYLIST_ID}/tracks`, {
+      method: 'POST', headers, body: JSON.stringify({ uris: uris.slice(i, i + 100) }),
+    });
+    if (rn.ok) log(`Added tracks ${i+1}-${Math.min(i+100, uris.length)}.`);
+    await new Promise(r => setTimeout(r, 300));
+  }
+  log('Spotify reorder complete — newest tracks at top.');
+}
+
 const args = process.argv.slice(2);
 if (args.includes('--auth')) runAuth().catch(e => { log('AUTH ERROR:', e.message); process.exit(1); });
+else if (args.includes('--reorder')) runReorder().catch(e => { log('REORDER ERROR:', e.message); process.exit(1); });
 else runSync(args.includes('--dry-run')).catch(e => { log('SYNC ERROR:', e.message); process.exit(1); });

@@ -13,6 +13,7 @@
     "sync-runner": "node sync-runner.js",
     "spotify-auth": "node spotify-sync.js --auth",
     "spotify-sync": "node spotify-sync.js",
+    "spotify-reorder": "node spotify-sync.js --reorder",
     "backfill-chat": "node backfill-chat.js"
   },
   "dependencies": {
