@@ -478,3 +478,19 @@ footer { margin-top: 36px; padding-top: 16px; border-top: 1px solid var(--line-s
 .uc5 { color: #38bdf8; }
 .uc6 { color: #facc15; }
 .uc7 { color: #4ade80; }
+
+.btn-add {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(255,255,255,.4);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.12);
+  align-self: flex-start;
+  flex-shrink: 0;
+  margin-top: 4px;
+  letter-spacing: .03em;
+  transition: color .15s, border-color .15s;
+}
+.btn-add:hover { color: rgba(255,255,255,.8); border-color: rgba(255,255,255,.3); }
