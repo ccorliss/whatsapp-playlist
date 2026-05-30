@@ -1093,3 +1093,27 @@ document.getElementById('chat-feed')?.addEventListener('click', function(e) {
   };
 })();
 
+
+// ── Audio only mode ──────────────────────────────────────────
+let audioOnly = localStorage.getItem('audioOnly') === '1';
+
+function setAudioOnly(on) {
+  audioOnly = on;
+  localStorage.setItem('audioOnly', on ? '1' : '0');
+  const btn = document.getElementById('audio-only-btn');
+  const player = document.getElementById('player');
+  if (btn) {
+    btn.textContent = on ? '🎧 Audio only ✓' : '🎧 Audio only';
+    btn.style.color = on ? '#f59e0b' : 'rgba(255,255,255,.5)';
+    btn.style.borderColor = on ? 'rgba(245,158,11,.4)' : 'rgba(255,255,255,.15)';
+  }
+  if (player) player.style.visibility = on ? 'hidden' : '';
+  if (player) player.style.height = on ? '0' : '';
+}
+
+document.getElementById('audio-only-btn')?.addEventListener('click', function() {
+  setAudioOnly(!audioOnly);
+});
+
+// Init audio only state
+if (audioOnly) setAudioOnly(true);
