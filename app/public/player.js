@@ -946,7 +946,7 @@ async function loadChat(prepend) {
   const feed = document.getElementById('chat-feed');
   if (!feed) { _chatLoading = false; return; }
   try {
-    const url = '/api/radio/chat?limit=300' + (_chatBefore ? '&before=' + _chatBefore : '');
+    const url = '/api/radio/chat?limit=500' + (_chatBefore ? '&before=' + _chatBefore : '');
     const d = await fetch(url).then(r => r.json());
     const msgs = (d.messages || []).reverse(); // oldest first
     if (!msgs.length && !prepend) {
@@ -959,7 +959,7 @@ async function loadChat(prepend) {
       if (prepend) feed.insertBefore(el, feed.firstChild);
       else feed.appendChild(el);
     });
-    if (msgs.length === 300) {
+    if (msgs.length === 500) {
       _chatBefore = d.messages.length ? d.messages[d.messages.length - 1].timestamp_ms : null;
       const btn = document.getElementById('chat-load-more');
       if (btn) btn.style.display = '';
