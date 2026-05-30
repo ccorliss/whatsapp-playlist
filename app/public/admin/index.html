@@ -105,7 +105,7 @@
 
   <div class="card">
     <h3>Apple Music Playlist</h3>
-    <label>Keeps the Apple Music playlist in sync. <a href="https://music.apple.com/us/playlist/music-fellowship/pl.u-4JomKEJTmZ27ym" target="_blank" style="color:var(--blue)">View playlist ↗</a></label>
+    <label>Keeps the Apple Music playlist in sync. <a href="https://music.apple.com/us/playlist/music-fellowship/pl.u-pMylDjbHKZabyK" target="_blank" style="color:var(--blue)">View playlist ↗</a></label>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
       <button class="btn sec" id="apple-find-btn">Find Playlist ID</button>
       <button class="btn sec" id="apple-sync-btn">Sync Apple Music</button>
@@ -498,7 +498,7 @@
       st.textContent = 'Searching all playlists...';
       var r = await fetch('/api/radio/apple-playlists', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userToken})});
       var d = await r.json();
-      if (d.found) st.textContent = '✓ Found: ' + d.found.name + ' (ID: ' + d.found.id + ') — stored. Now tap Sync.';
+      if (d.found) { window._applePlaylistId = d.found.id; st.textContent = '✓ Found: ' + d.found.name + ' (ID: ' + d.found.id + ') — stored. Now tap Sync.'; }
       else st.textContent = '✗ Music Fellowship not found in ' + d.total + ' playlists. Names: ' + (d.playlists||[]).map(function(p){return p.name;}).join(', ');
     } catch(e) { st.textContent = '✗ ' + e.message; }
     btn.disabled = false;
@@ -521,7 +521,7 @@
       var tracksR = await fetch('/api/radio/all');
       var tracksD = await tracksR.json();
       var appleIds = (tracksD.tracks||[]).filter(function(t){return t.apple_music_id;}).map(function(t){return t.apple_music_id;});
-      var playlistId = 'p.aJe04zxs8OkWq8'; // stored internal library ID
+      var playlistId = window._applePlaylistId || 'pl.u-pMylDjbHKZabyK';
 
       st.textContent = 'Syncing ' + appleIds.length + ' tracks via MusicKit...';
       var added = 0, failed = 0;
