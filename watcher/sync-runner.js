@@ -54,20 +54,50 @@ async function hasNewTracks() {
   }
 }
 
+async function callCfSync(type) {
+  try {
+    const r = await fetch(`${RADIO_API_URL}/api/radio/${type}-sync`, { method: 'POST' });
+    const d = await r.json().catch(() => ({}));
+    log(`${type} CF sync: HTTP ${r.status}`, d.ok ? `added=${d.added||0}` : (d.error||''));
+    return d;
+  } catch (e) {
+    log(`${type} CF sync failed:`, e.message);
+  }
+}
+
 async function check() {
   if (!await hasNewTracks()) return;
-  log('New unsynced Spotify tracks found — running sync...');
+  log('New unsynced tracks found — running all syncs...');
+
+  // Spotify: Playwright adds new tracks, then CF API does full reorder (newest first)
   try {
     execSync(`node ${path.join(__dirname, 'spotify-sync.js')}`, { stdio: 'inherit' });
     const synced = loadSynced();
+    log(`Spotify Playwright sync complete. Total synced: ${synced.size}`);
+    // Full CF reorder to keep playlist newest-first
+    const sd = await callCfSync('spotify');
+    if (sd?.ok) {
+      await fetch(`${RADIO_API_URL}/api/radio/sync-complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'spotify', added: synced.size, at: new Date().toISOString() }),
+      }).catch(() => {});
+    }
+  } catch (e) {
+    log('Spotify sync failed:', e.message);
+  }
+
+  // YouTube: call CF sync endpoint (uses stored OAuth)
+  await callCfSync('youtube');
+
+  // Apple Music: call CF sync endpoint (uses stored user token)
+  const ad = await callCfSync('apple');
+  if (ad?.ok) {
     await fetch(`${RADIO_API_URL}/api/radio/sync-complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'spotify', added: synced.size, at: new Date().toISOString() }),
+      body: JSON.stringify({ type: 'apple', added: ad.added, at: new Date().toISOString() }),
     }).catch(() => {});
-    log(`Spotify sync complete. Total synced: ${synced.size}`);
-  } catch (e) {
-    log('Spotify sync failed:', e.message);
   }
 }
 

@@ -653,8 +653,8 @@ export async function onRequest({ request, env, params }) {
       if (!playlistId) return json({ error: 'Could not get or create playlist. me.id=' + me.id }, 500);
       await env.RADIO_SECRETS.put('spotify_playlist_id', playlistId);
     }
-    // Get tracks with Spotify URLs
-    const rows = await db.prepare("SELECT spotify_url FROM tracks WHERE enabled=1 AND spotify_url LIKE '%/track/%'").all();
+    // Get tracks with Spotify URLs — newest shared first
+    const rows = await db.prepare("SELECT spotify_url FROM tracks WHERE enabled=1 AND spotify_url LIKE '%/track/%' ORDER BY COALESCE(shared_at, added_at) DESC").all();
     const uris = (rows.results || []).map(r => { const m = r.spotify_url.match(/track\/([A-Za-z0-9]+)/); return m ? 'spotify:track:' + m[1] : null; }).filter(Boolean);
     // Verify we own the playlist
     const plCheckR = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}?fields=owner`, { headers: { 'Authorization': 'Bearer ' + accessToken } });
