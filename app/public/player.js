@@ -981,7 +981,9 @@ function chatJumpToTrack(id) {
   const el = feed.querySelector(`.cmsg[data-track-id="${id}"]`);
   if (el) {
     el.classList.add('highlighted');
-    el.scrollIntoView({block:'center'});
+    // Scroll only within the feed container — never let this scroll the window
+    const elTop = el.offsetTop - feed.offsetTop;
+    feed.scrollTo({ top: elTop - feed.clientHeight / 2 + el.clientHeight / 2, behavior: 'smooth' });
     setTimeout(() => el.classList.remove('highlighted'), 3500);
   }
 }
