@@ -1220,20 +1220,31 @@ export async function onRequest({ request, env, params }) {
         if (!playlistId) return json({ ok: false, error: 'Failed to create playlist: ' + JSON.stringify(cd).slice(0,200) });
       }
 
-      // Add all tracks in batches of 100
-      let added = 0;
-      for (let i = 0; i < catalogIds.length; i += 100) {
-        const batch = catalogIds.slice(i, i + 100);
+      // Add all tracks in batches of 25 — smaller batches to isolate failures
+      let added = 0, failed = 0;
+      const errors = [];
+      for (let i = 0; i < catalogIds.length; i += 25) {
+        const batch = catalogIds.slice(i, i + 25);
         const ar = await fetch(`https://api.music.apple.com/v1/me/library/playlists/${playlistId}/tracks`, {
           method: 'POST', headers: amHeaders,
           body: JSON.stringify({ data: batch.map(id => ({ id, type: 'songs' })) })
         });
-        if (!ar.ok && ar.status !== 204) { const e = await ar.json(); return json({ ok: false, error: 'Add failed: ' + (e.errors?.[0]?.detail || ar.status), added }); }
-        added += batch.length;
+        if (ar.ok || ar.status === 204) {
+          added += batch.length;
+        } else {
+          const errBody = await ar.json().catch(() => ({}));
+          const detail = errBody.errors?.[0]?.detail || ar.status;
+          errors.push(`batch ${i}: ${detail}`);
+          failed += batch.length;
+          // If it's auth-related, abort early
+          if (ar.status === 401 || ar.status === 403) {
+            return json({ ok: false, error: `Auth error (${ar.status}): ${detail} — try Sync Apple Music again to re-authorize`, added, failed });
+          }
+        }
       }
 
-      await env.RADIO_SECRETS.put('sync_apple_status', JSON.stringify({ done: true, added, at: new Date().toISOString() }));
-      return json({ ok: true, added, playlistId });
+      await env.RADIO_SECRETS.put('sync_apple_status', JSON.stringify({ done: true, added, failed, at: new Date().toISOString() }));
+      return json({ ok: true, added, failed, errors: errors.slice(0,5), playlistId });
     } catch(e) {
       return json({ ok: false, error: e.message }, 500);
     }
