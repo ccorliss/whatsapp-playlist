@@ -975,6 +975,8 @@ async function loadChat(prepend) {
       const btn = document.getElementById('chat-load-more');
       if (btn) btn.style.display = 'none';
     }
+    _allChatMsgs = msgs; // store for inline chat render
+    if (chatMode) setTimeout(renderInlineChat, 100);
     if (!prepend) feed.scrollTop = feed.scrollHeight;
     else feed.scrollTop = feed.scrollHeight - oldH;
   } catch(e) { console.warn('chat', e); }
