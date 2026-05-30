@@ -921,7 +921,7 @@ function buildBubble(m) {
     const thumb = m.thumbnail_url
       ? `<img src="${esc(m.thumbnail_url)}" loading="lazy"/>`
       : `<div style="width:32px;height:32px;border-radius:4px;background:rgba(255,255,255,.08);flex-shrink:0"></div>`;
-    bodyHtml = comment + `<div class="ctrack">` +
+    bodyHtml = comment + `<div class="ctrack" data-play-id="${m.track_id}" style="cursor:pointer">` +
       thumb +
       `<div class="ctrack-info">` +
       `<span class="ctrack-title">${esc(m.track_title)}</span>` +
@@ -990,6 +990,18 @@ function chatJumpToTrack(id) {
 
 loadChat();
 document.getElementById('chat-load-more')?.addEventListener('click', () => loadChat(true));
+
+// Click on chat track card → play that track
+document.getElementById('chat-feed')?.addEventListener('click', function(e) {
+  const card = e.target.closest('.ctrack[data-play-id]');
+  if (!card) return;
+  const id = parseInt(card.dataset.playId);
+  if (!id) return;
+  const track = state.playOrder.find(t => t.id === id) || (state.current?.id === id ? state.current : null);
+  if (track) { playTrack(track); return; }
+  // Not in current queue — fetch it
+  fetch('/api/radio/track/' + id).then(r => r.json()).then(d => { if (d.id) playTrack(d); }).catch(() => {});
+});
 
 // Hook track selection → jump chat
 (function() {
